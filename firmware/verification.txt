@@ -1,0 +1,4 @@
+OK3.4.0; MicroPython v1.29.0 on 2026-08-24
+(sysname='rp2', nodename='rp2', release='1.29.0', version='v1.29.0 on 2026-08-24 (GNU 16.1.0 MinSizeRel)', machine='Raspberry Pi Pico 2 W with RP2350')
+BOARD_ID=8792b44d9c11021d
+>

@@ -1,0 +1,22 @@
+Project Pico 8792b44d9c11021d on COM7
+SYNTHETIC_SYNC0 duty=16384 {'pulses': 60, 'rpm': 3000.0, 'valid': True, 'period_us': 10000.0, 'age_ms': 6, 'peak_rpm': 3000.0, 'samples': 8, 'hz': 100.0, 'sample_offset_us': 62.50019}
+SYNTHETIC_SYNC1 duty=16384 {'pulses': 60, 'rpm': 3000.0, 'valid': True, 'period_us': 10000.0, 'age_ms': 6, 'peak_rpm': 3000.0, 'samples': 8, 'hz': 100.0, 'sample_offset_us': 62.50019}
+SYNTHETIC_SYNC2 duty=16384 {'pulses': 60, 'rpm': 3000.0, 'valid': True, 'period_us': 10000.0, 'age_ms': 6, 'peak_rpm': 3000.0, 'samples': 8, 'hz': 100.0, 'sample_offset_us': 62.50019}
+SYNTHETIC_SYNC3 duty=16384 {'pulses': 60, 'rpm': 3000.0, 'valid': True, 'period_us': 10000.0, 'age_ms': 6, 'peak_rpm': 3000.0, 'samples': 8, 'hz': 100.0, 'sample_offset_us': 62.50019}
+SYNTHETIC_SYNC4 duty=16384 {'pulses': 60, 'rpm': 3000.0, 'valid': True, 'period_us': 10000.0, 'age_ms': 6, 'peak_rpm': 3000.0, 'samples': 8, 'hz': 100.0, 'sample_offset_us': 62.50019}
+SYNTHETIC_SYNC5 duty=16384 {'pulses': 60, 'rpm': 3000.0, 'valid': True, 'period_us': 10000.0, 'age_ms': 6, 'peak_rpm': 3000.0, 'samples': 8, 'hz': 100.0, 'sample_offset_us': 62.50019}
+SYNTHETIC_SYNC0 duty=32768 {'pulses': 121, 'rpm': 3000.0, 'valid': True, 'period_us': 10000.0, 'age_ms': 1, 'peak_rpm': 3000.0, 'samples': 8, 'hz': 100.0, 'sample_offset_us': 25.000382}
+SYNTHETIC_SYNC1 duty=32768 {'pulses': 121, 'rpm': 3000.0, 'valid': True, 'period_us': 10000.0, 'age_ms': 1, 'peak_rpm': 3000.0, 'samples': 8, 'hz': 100.0, 'sample_offset_us': 25.000382}
+SYNTHETIC_SYNC2 duty=32768 {'pulses': 121, 'rpm': 3000.0, 'valid': True, 'period_us': 10000.0, 'age_ms': 1, 'peak_rpm': 3000.0, 'samples': 8, 'hz': 100.0, 'sample_offset_us': 25.000382}
+SYNTHETIC_SYNC3 duty=32768 {'pulses': 121, 'rpm': 3000.0, 'valid': True, 'period_us': 10000.0, 'age_ms': 1, 'peak_rpm': 3000.0, 'samples': 8, 'hz': 100.0, 'sample_offset_us': 25.000382}
+SYNTHETIC_SYNC4 duty=32768 {'pulses': 121, 'rpm': 3000.0, 'valid': True, 'period_us': 10000.0, 'age_ms': 1, 'peak_rpm': 3000.0, 'samples': 8, 'hz': 100.0, 'sample_offset_us': 25.000382}
+SYNTHETIC_SYNC5 duty=32768 {'pulses': 121, 'rpm': 3000.0, 'valid': True, 'period_us': 10000.0, 'age_ms': 1, 'peak_rpm': 3000.0, 'samples': 8, 'hz': 100.0, 'sample_offset_us': 25.000382}
+SYNTHETIC_SYNC0 duty=49151 {'pulses': 181, 'rpm': 3000.0, 'valid': True, 'period_us': 10000.0, 'age_ms': 6, 'peak_rpm': 3000.0, 'samples': 8, 'hz': 100.0, 'sample_offset_us': 37.49981}
+SYNTHETIC_SYNC1 duty=49151 {'pulses': 181, 'rpm': 3000.0, 'valid': True, 'period_us': 10000.0, 'age_ms': 6, 'peak_rpm': 3000.0, 'samples': 8, 'hz': 100.0, 'sample_offset_us': 37.49981}
+SYNTHETIC_SYNC2 duty=49151 {'pulses': 181, 'rpm': 3000.0, 'valid': True, 'period_us': 10000.0, 'age_ms': 6, 'peak_rpm': 3000.0, 'samples': 8, 'hz': 100.0, 'sample_offset_us': 37.49981}
+SYNTHETIC_SYNC3 duty=49151 {'pulses': 181, 'rpm': 3000.0, 'valid': True, 'period_us': 10000.0, 'age_ms': 6, 'peak_rpm': 3000.0, 'samples': 8, 'hz': 100.0, 'sample_offset_us': 37.49981}
+SYNTHETIC_SYNC4 duty=49151 {'pulses': 181, 'rpm': 3000.0, 'valid': True, 'period_us': 10000.0, 'age_ms': 6, 'peak_rpm': 3000.0, 'samples': 8, 'hz': 100.0, 'sample_offset_us': 37.49981}
+SYNTHETIC_SYNC5 duty=49151 {'pulses': 181, 'rpm': 3000.0, 'valid': True, 'period_us': 10000.0, 'age_ms': 6, 'peak_rpm': 3000.0, 'samples': 8, 'hz': 100.0, 'sample_offset_us': 37.49981}
+SYNTHETIC_ENDPOINT duty=0 samplers=6
+SYNTHETIC_ENDPOINT duty=65535 samplers=6
+SYNC_SELFTEST_PASS six simultaneous samplers, noisy waveform, timeout, endpoints, shared cleanup

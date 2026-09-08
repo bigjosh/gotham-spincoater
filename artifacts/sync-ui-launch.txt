@@ -1,0 +1,7 @@
+Project Pico 8792b44d9c11021d on COM7
+OK
+FAN_UI_READY PWM=GP18 TACH=GP19 MODE=PUSH_PULL HZ=10000 OUTPUT=0%
+TACH_SYNC=True CHANNELS=(0,) AVERAGE_PERIODS=8
+FAN0 duty=0 rpm=0.0 hz=0.00 peak=0.0 periods=0 valid=False sample_us=50.0
+FAN0 duty=0 rpm=0.0 hz=0.00 peak=0.0 periods=0 valid=False sample_us=50.0
+FAN0 duty=0 rpm=0.0 hz=0.00 peak=0.0 periods=0 valid=False sample_us=50.0
