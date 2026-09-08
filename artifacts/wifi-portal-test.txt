@@ -1,0 +1,5 @@
+HTTP configuration save/readback: OK
+HTTP editor page: 15783 bytes
+Captive DNS and HTTP redirect: OK
+Running recipe edit lockout: OK
+WIFI_PORTAL_PASS requests=54 hold_samples=8 rpm_range=2952.0..2963.0 worst_lag=6ms overflows=0

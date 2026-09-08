@@ -1,0 +1,8 @@
+Project Pico 8792b44d9c11021d on COM7
+GOTHAM_READY SSID=Gotham Spinner IP=192.168.4.1 CHANNELS=(0,) PWSPIN state=IDLE step=0 target=0.0 #0:--/0% lag=0ms message=Ready
+SPIN state=IDLE step=0 target=0.0 #0:--/0% lag=0ms messageSPIN state=IDLE step=0 target=0.0 #0:--/0% lag=0ms message=Ready
+SPIN state=IDLE step=0 target=0.0 #0:--/0% lag=0ms message=Ready
+SPIN state=IDLE step=0 target=0.0 #0:--/0% lag=0ms message=Ready
+SPIN state=IDLE step=0 target=0.0 #0:--/0% lag=0ms message=Ready
+SPIN state=IDLE step=0 target=0.0 #0:--/0% lag=0ms message=Ready
+SPIN state=IDLE step=0 target=0.0 #0:--/0% lag=0ms message=Ready

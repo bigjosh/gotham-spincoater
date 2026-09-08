@@ -1,0 +1,5 @@
+Project Pico 8792b44d9c11021d on COM7
+CAPACITY_CAPTURE six_rpm=[3000.0, 3000.0, 3000.0, 3000.0, 3000.0, 3000.0] AP=True PIO1_enabled=0x0
+CAPACITY_STOP six hardware latches stayed LOW after release; AP=True
+CAPACITY_CLEANUP_COMPLETE DMA and fan programs released, AP off, GP0/1/20 inputs
+CAPACITY_PASS six combined PIO/DMA engines + active Wi-Fi; elapsed_ms=1807; shared dummy output only

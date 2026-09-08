@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "selected": "Default",
+  "settings": {
+    "max_power_per_s": 10,
+    "tolerance_rpm": 50,
+    "settle_s": 0.5,
+    "reach_timeout_s": 15
+  },
+  "profiles": [
+    {
+      "name": "Default",
+      "steps": [
+        {"rpm": 0, "slew_s": 0, "dwell_s": 0},
+        {"rpm": 3000, "slew_s": 15, "dwell_s": 30},
+        {"rpm": 0, "slew_s": 15, "dwell_s": 0}
+      ]
+    }
+  ]
+}

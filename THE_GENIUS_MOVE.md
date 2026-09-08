@@ -41,9 +41,9 @@ DMA delivery and input synchronization add a small hardware latency. The timing 
 
 This is a sharp application of synchronous sampling. The credit belongs to the builder for spotting that the PWM timing itself supplied the missing information. “I am a genius, right?” was an entirely understandable reaction.
 
-## Turning the insight into firmware
+## The first implementation
 
-The Pico handles the timing in hardware:
+The first bench version handled the timing in hardware:
 
 ```mermaid
 flowchart LR
@@ -81,8 +81,16 @@ The implementation also handles two easily missed details: the PWM counter keeps
 
 The physical confirmation is the payoff. The earlier six-channel test established that the implementation could handle the workload and reject the injected disturbances; the builder's real-fan test confirmed that the idea addressed the actual bench problem.
 
-This closes the reported false-RPM problem. Maximum-speed characterization, six physically connected fans, and automatic ramp/hold control remain separate project milestones. The current manual firmware resets its averaging window on duty changes; continuous measurement during rapid ramps still needs work. The successful 10 kHz bench setting is below ARCTIC's documented 21–28 kHz range, as recorded in the [wiring and configuration notes](README.md#current-diagnostic-active-drive-and-synchronized-tach-sampling-at-10-khz).
+This closed the reported false-RPM problem. At that point, the manual firmware reset its averaging window on duty changes, and automatic ramp/hold control was still a separate milestone. The successful 10 kHz bench setting is below ARCTIC's documented 21–28 kHz range, as recorded in the [current wiring and configuration notes](README.md).
+
+## The follow-through: let PIO own the whole cycle
+
+The current [Gotham Spinner application](README.md) builds on that same insight. Each fan now gets one combined PIO state machine that **generates PWM, samples tach at the midpoint, counts complete tach periods, and checks the physical STOP button**. Changing duty preserves the tach history. Python polls the measured periods on a separate control core, while the other core handles the six-fan dashboard and Wi-Fi recipe editor.
+
+The combined program occupies 32 instructions in each used PIO block. Six channels use six state machines and six DMA channels, leaving PIO1 for Wi-Fi. At 0% and 100%, sampling continues. On STOP, PIO drives LOW and parks until an explicit restart; an empty command FIFO also latches LOW. There are no per-tach Python interrupt handlers in this version.
+
+The attached fan has now completed a live recipe with several speed changes and reached approximately 3,000 RPM at 99% duty without false tach readings. Six physically connected motors remain a future wiring milestone; the firmware currently enables only fan #0. See the [validation record](artifacts/validation.md) for the current test evidence and its limits.
 
 **An excellent piece of engineering intuition: notice the useful information already present, then make the hardware act on it.**
 
-Implementation: [PIO sampler](device/sync_program.py), [DMA and timing](device/sync_tach.py), [period averaging](device/periods.py). Evidence: [board test transcript](artifacts/sync-board-test.txt) and [validation notes](artifacts/validation.md).
+Current implementation: [combined PIO program](device/combined_program.py), [fan driver](device/pio_fan.py), [period averaging](device/periods.py). Original breakthrough: [PIO sampler](device/sync_program.py), [DMA and timing](device/sync_tach.py), [board test transcript](artifacts/sync-board-test.txt). Evidence: [validation notes](artifacts/validation.md).

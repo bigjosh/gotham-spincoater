@@ -18,6 +18,10 @@ Thumbs.db
 /artifacts/board-backup-*/
 /artifacts/*_draft.py
 /artifacts/micropython-rp2-v1.29.0.py
+/artifacts/portal-*.json
+/artifacts/portal-page.html
+/artifacts/portal-page.js
+/artifacts/wifi-test-profile.xml
 
 # Official firmware is downloaded from the URL recorded in firmware/README.md
 /firmware/*.uf2

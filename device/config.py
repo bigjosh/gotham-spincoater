@@ -1,4 +1,4 @@
-"""Bench-test settings; no fan starts automatically."""
+"""Gotham Spinner hardware settings; no fan starts automatically."""
 PWM_PIN = 18
 TACH_PIN = 19
 PWM_PUSH_PULL = True  # Actively drive 0 V and 3.3 V.
@@ -25,3 +25,5 @@ TACH_STATE_MACHINES = (0, 1, 2, 3, 8, 9)
 ENABLED_CHANNELS = (0,)
 # Set True only after physically disconnecting RGB/buzzer/D1/D2 links.
 AUX_LINKS_DISCONNECTED = False
+WIFI_SSID = 'Gotham Spinner'
+WIFI_IP = '192.168.4.1'
