@@ -1,0 +1,7 @@
+Project Pico 8792b44d9c11021d on COM7
+Verified upload: control.py (16457 bytes)
+Verified upload: dashboard.py (6900 bytes)
+Verified upload: main.py (4610 bytes)
+Verified upload: runtime.py (19077 bytes)
+Verified upload: webpage.py (16534 bytes)
+Application files installed

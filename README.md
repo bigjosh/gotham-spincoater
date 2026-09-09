@@ -6,7 +6,7 @@
 
 MicroPython controller for **Raspberry Pi Pico 2 W**, six **ARCTIC P12 Pro** fans, and the **52Pi/GeeekPi Pico Breadboard Kit Plus (EP-0172)**. Each enabled fan independently adjusts PWM power to follow one shared RPM target. A TFT dashboard displays all six channels; a local Wi-Fi page edits recipes.
 
-**All six fans are available; #0–#3 are selected by default.** The builder has confirmed the GPIO modifications for #4/#5, so their touch buttons now offer ENABLE. Use each tile's button to choose which fans participate; saved selections are preserved. Connect every selected fan before pressing START: missing tach on a selected channel faults the whole recipe. Physical spin testing so far covers fan #0; enabling the other channels does not establish that they are wired or tested.
+**All six fans are available; #0–#3 are selected by default.** The builder has confirmed the GPIO modifications for #4/#5, so their touch buttons now offer ENABLE. Use each tile's button to choose which fans participate; saved selections are preserved. Connect every selected fan before pressing START: persistent missing tach faults that fan and removes it from the current run, while the others continue. Physical spin testing so far covers fan #0; enabling the other channels does not establish that they are wired or tested.
 
 **Building all six channels? [Board modification guide: free the four auxiliary GPIOs](BOARD_MODIFICATIONS.md)** — component locations, connection tracing, desoldering, continuity checks, wiring, and firmware setup.
 
@@ -54,7 +54,11 @@ The [default recipe](examples/recipes.json) is:
 
 Planned ramps and dwell total 60 seconds. Initial quiet detection, settling, and final coast-down add time. A target is a request; the controller does not assume every fan can reach every permitted RPM.
 
-After each ramp, **all enabled fans** must remain within tolerance for the settling interval before dwell starts. Dwell counts only while all remain within tolerance, and pauses if any leaves the band. A reach timeout, persistent tach loss, or hardware fault commands every output LOW and leaves the run faulted.
+After each ramp, **all participating fans** must remain within tolerance for the settling interval before dwell starts. Dwell counts only while all remaining participants are within tolerance, and pauses if any leaves the band. Each fan has its own settling and recovery checks; a fan that leaves tolerance during dwell must settle again to clear its recovery timeout.
+
+**A fan fault stops only that fan.** Persistent tach loss, failure to reach/recover the target, or a channel driver fault commands that channel LOW and excludes it from control, settling, and dwell for the rest of the run. Its tile turns red and shows **FAULT**; the browser also shows the reason. The other fans continue the current recipe without restarting its ramp or losing accumulated dwell. If no participating fans remain, the run ends in FAULT. If the remaining fans finish, the run ends COMPLETE and reports the failed fans.
+
+Faults do not change the saved fan selection. A fresh physical START retries the selected fans. The physical STOP button and controller-wide failures still stop every output immediately.
 
 | Setting | Default | Range |
 | --- | --- | --- |
@@ -63,7 +67,7 @@ After each ramp, **all enabled fans** must remain within tolerance for the settl
 | `settle_s` | 0.5 s continuously in tolerance | 0.05–10 s |
 | `reach_timeout_s` | 15 s to reach/recover target | 1–120 s |
 
-Each fan's normal adjustment rate is `0.01 × RPM error` percentage points/s, limited by `max_power_per_s`, with no adjustment inside tolerance. The gain is `ControlEngine.SEEK_GAIN`. STOP, FAULT, and an explicit zero target command zero power immediately. A slow control tick cannot accumulate a large catch-up adjustment.
+Each fan's normal adjustment rate is `0.01 × RPM error` percentage points/s, limited by `max_power_per_s`, with no adjustment inside tolerance. The gain is `ControlEngine.SEEK_GAIN`. A fan fault commands zero power on that channel immediately; STOP and an explicit zero target command zero power on every channel. A slow control tick cannot accumulate a large catch-up adjustment.
 
 Startup without tach is limited to **8 seconds and at most 30% requested power**. Once valid tach has been observed, a missing signal normally holds power briefly, then faults after **1.5 seconds of invalid readings**. The measurement source itself also has a 1.5-second stale-data timeout.
 
@@ -212,6 +216,8 @@ python -m unittest discover -s tests -v
 Tests cover controller transitions/limits, persistence recovery, START/edit races, HTTP/DNS, PIO instruction timing, resource ownership, and legacy regressions. Actual board/fan evidence belongs in [artifacts/validation.md](artifacts/validation.md); generated tach tests are not physical fan measurements.
 
 `tools/test_fan_settings_board.py` checks saved selections, all-off behavior, GPIO locks, the worker heartbeat, and LOW PWM outputs using a separate temporary settings file. It never starts a recipe and preserves the user's `fans.json` and `recipes.json`. Run it through `pico.ps1 -Action Exec -CodeFile tools/test_fan_settings_board.py` after deploying the modules, then reboot into the normal app. Touch hit alignment still needs a physical tap check on the installed display.
+
+`tools/test_fault_isolation_board.py` runs the control engine with scripted tach readings, without accessing GPIOs. `tools/test_fault_runtime_board.py` exercises all six live PIO drivers with an all-zero-RPM recipe and an injected fault on the control core: the failed channel parks while the other five remain armed at 0%. Neither test changes saved selections or recipes. Run each through the guarded `Exec` helper after deployment, then reboot. These check fault isolation and MicroPython compatibility, not positive-power operation of six physical fans.
 
 `tools/test_combined_board.py` drives **spare GP0/GP1/GP20** to test the current driver, continuous duty changes, STOP, command starvation, and FIFO recovery. Run only with these pins unconnected and the normal app's PIO resources released. The older `test_sync_board.py` uses GP0/GP1 and PIO1 SM4, requiring wireless to be inactive. `selftest.py` uses GP0/GP1 and SM10/11 for the original GPIO-IRQ test. Never run pin-driving tests after attaching additional fans or devices to those pins.
 

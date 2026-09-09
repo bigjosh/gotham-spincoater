@@ -4,7 +4,7 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'device'))
-from dashboard import Dashboard, CARD, DISABLED_CARD, WHITE
+from dashboard import Dashboard, BG, CARD, DISABLED_CARD, FAULT_CARD, TRACK, WHITE, RED
 
 
 class Display:
@@ -105,6 +105,49 @@ class DashboardToggleTests(unittest.TestCase):
         self.dashboard.update({'state': 'FAULT', 'message': 'Fan 0 tach missing'})
         self.assertIn('Fan 0 tach missing', self.labels())
         self.assertNotIn('Old notice', self.labels())
+
+    def test_fault_repaints_only_failed_card_and_keeps_selection_action(self):
+        snapshot = {'state': 'DWELL', 'running': True, 'fans': [
+            {'enabled': True, 'valid': True, 'rpm': 3000, 'duty': 70},
+            {'enabled': True, 'valid': True, 'rpm': 2998, 'duty': 69}]}
+        self.dashboard.update(snapshot)
+        self.display.calls.clear()
+        snapshot['fans'][0].update(fault='tach signal missing', participating=False,
+                                   valid=False, duty=0)
+        self.dashboard.update(snapshot)
+        self.assertIn(('rect', 8, 76, 152, 80, FAULT_CARD), self.display.calls)
+        self.assertIn('FAULT', self.labels())
+        self.assertIn('--', self.labels())
+        self.assertFalse(any(call[0] == 'rect' and call[1:5] == (164, 76, 152, 80)
+                             for call in self.display.calls))
+        self.assertIn(('rect', 16, 147, 136, 5, TRACK), self.display.calls)
+        calls = len(self.display.calls)
+        self.dashboard.update(snapshot)
+        self.assertEqual(len(self.display.calls), calls)
+
+        # A latched fault does not silently disable the selected fan. The idle
+        # button can still disable it, or START can retry that selection.
+        self.display.calls.clear()
+        snapshot.update(state='COMPLETE', running=False)
+        self.dashboard.update(snapshot)
+        self.assertIn(('text', 'DISABLE', 92, 89, WHITE, TRACK), self.display.calls)
+        self.assertFalse(any(call[0] == 'text' and call[1] == 'ENABLE'
+                             and 8 <= call[2] < 160 and 76 <= call[3] < 156
+                             for call in self.display.calls))
+        self.display.calls.clear()
+        snapshot.update(state='RAMP', running=True)
+        snapshot['fans'][0].update(fault=None, participating=True)
+        self.dashboard.update(snapshot)
+        self.assertIn(('rect', 8, 76, 152, 80, CARD), self.display.calls)
+        self.assertNotIn('FAULT', self.labels())
+
+    def test_global_error_does_not_invent_individual_fan_faults(self):
+        self.dashboard.update({'state': 'FAULT', 'message': 'Controller error',
+                               'fans': [{'enabled': True, 'fault': None}]})
+        self.assertIn(('text', 'FAULT', 8, 9, RED, BG), self.display.calls)
+        self.assertIn(('rect', 8, 76, 152, 80, CARD), self.display.calls)
+        self.assertFalse(any(call[0] == 'text' and call[1] == 'FAULT' and call[3] >= 76
+                             for call in self.display.calls))
 
 
 if __name__ == '__main__':

@@ -1,0 +1,6 @@
+Project Pico 8792b44d9c11021d on COM7
+LOCAL_PIO_FAULT_OK other five seekers continue
+LOCAL_TACH_FAULT_OK remaining four resume accumulated dwell
+COMPLETE_WITH_FAULTS_OK selection preserved, all duties zero
+RETRY_AND_GLOBAL_STOP_OK fresh START clears faults, STOP stops all
+FAULT_ISOLATION_BOARD_OK scripted tach only; no motor commands

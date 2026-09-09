@@ -1,0 +1,5 @@
+Project Pico 8792b44d9c11021d on COM7
+OK
+TOUCH_UNAVAILABLE [Errno 5] EIO
+GOTHAM_READY SSID=Gotham Spinner IP=192.168.4.1 CHANNELS=(0, 1, 2, 3, 4, 5) PWM=PIO10kHz CONTROL=CORE1/50Hz
+SPIN state=IDLE step=0 target=0.0 #0:--/0% #1:--/0% #2:--/0% #3:--/0% #4:--/0% #5:--/0% lag=3ms message=Ready

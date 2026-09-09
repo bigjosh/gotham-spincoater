@@ -60,6 +60,7 @@ class Controller:
             defaults=config.ENABLED_CHANNELS, available=self.available)
         self.enabled = tuple(i for i in self.fan_settings.load() if i in self.available)
         self._outputs_parked = False
+        self._fault_parked = set()
         numbers = [n for i in self.available for n in config.FUTURE_CHANNELS[i]]
         if len(set(numbers)) != len(numbers):
             raise ValueError('Fan GPIO allocation overlaps')
@@ -117,6 +118,22 @@ class Controller:
         state['fan_settings_source'] = self.fan_settings.source
         state['fan_settings_error'] = self.fan_settings.load_error
         return state
+
+    def _park_channel(self, channel):
+        """Worker-only isolation; failed teardown requires the shared STOP."""
+        if channel in self._fault_parked:
+            return
+        try:
+            self.fans[channel].stop()
+        except Exception as error:
+            reason = 'Could not stop fan %d: %s' % (channel, error)
+            self.request_shutdown(reason)
+            raise RuntimeError(reason)
+        self._fault_parked.add(channel)
+
+    def _isolate_fan(self, channel, reason):
+        self._park_channel(channel)
+        self.engine.fault_channel(channel, reason)
 
     def _service_edit(self):
         """Worker-only pause/commit acknowledgement, with every PWM held LOW."""
@@ -262,47 +279,88 @@ class Controller:
                         try:
                             if not self.enabled:
                                 raise RuntimeError('Enable at least one fan before START')
+                            arm_faults = []
+                            self._fault_parked.clear()
                             for i in self.enabled:
                                 fan = self.fans[i]
                                 if self.closing:
                                     raise RuntimeError('Controller shutting down')
-                                if not fan.arm():
-                                    raise RuntimeError('STOP held or fan could not arm')
+                                if not self.stop_pin.value():
+                                    raise RuntimeError('STOP held')
+                                arm_error = None
+                                try:
+                                    armed = fan.arm()
+                                except Exception as error:
+                                    arm_error = 'arm failed: ' + str(error)
                                 if self.closing:
                                     raise RuntimeError('Controller shutting down')
+                                if not self.stop_pin.value():
+                                    raise RuntimeError('STOP held')
+                                if arm_error:
+                                    self._park_channel(i)
+                                    arm_faults.append((i, arm_error))
+                                elif not armed:
+                                    # False means STOP was sampled or the CPU
+                                    # clock changed. A brief STOP may already
+                                    # be released, so this remains global.
+                                    raise RuntimeError('STOP or clock change prevented arming')
                             self._outputs_parked = False
                             self.engine.start(profile, settings, now)
+                            for i, reason in arm_faults:
+                                self.engine.fault_channel(i, reason)
                             if self.closing:
                                 raise RuntimeError('Controller shutting down')
+                            if not self.stop_pin.value():
+                                raise RuntimeError('STOP held')
                             was_running = True
                         except Exception as error:
                             self.engine.stop('Cannot start: ' + str(error))
                             self._stop_outputs()
 
-                readings = ({} if self._outputs_parked else
-                            {i: self.fans[i].sample() for i in self.enabled})
+                readings = {}
+                if not self._outputs_parked:
+                    for i in self.engine.participating:
+                        try:
+                            reading = self.fans[i].sample()
+                        except Exception as error:
+                            self._isolate_fan(i, 'sample failed: ' + str(error))
+                            continue
+                        if reading.get('fault') == 'clock_changed':
+                            # A changed CPU clock invalidates every channel's
+                            # timing, rather than one fan's measurement.
+                            raise RuntimeError('Controller clock changed')
+                        readings[i] = reading
+                if self.closing or not self.stop_pin.value():
+                    self.engine.stop('Controller shutting down' if self.closing else 'STOP button')
+                    self._stop_outputs()
+                    readings = {}
                 duties = self.engine.update(now, readings)
                 if self.closing:
                     self.engine.stop('Controller shutting down')
-                running = self.engine.running
                 if self.engine.state in ('STOPPED', 'FAULT'):
-                    # Also propagates any individual PIO latch to all channels.
                     self._stop_outputs()
                 elif not self._outputs_parked:
                     for i in self.enabled:
-                        fan = self.fans[i]
-                        if self.closing:
-                            self.engine.stop('Controller shutting down')
+                        if self.closing or not self.stop_pin.value():
+                            self.engine.stop('Controller shutting down' if self.closing else 'STOP button')
                             self._stop_outputs()
-                            running = False
                             break
-                        fan.set_duty(duties[i])
+                        if self.engine.faults[i] is not None:
+                            self._park_channel(i)
+                            continue
+                        try:
+                            self.fans[i].set_duty(duties[i])
+                        except Exception as error:
+                            self._isolate_fan(i, 'power command failed: ' + str(error))
+                            if not self.engine.participating:
+                                self._stop_outputs()
+                                break
+                running = self.engine.running
                 with self.lock:
                     self._running = running
                 if ticks_diff(now, last_publish) >= 100 or running != was_running:
                     state = self._state()
                     for i, reading in readings.items():
-                        state['fans'][i]['fault'] = reading.get('fault')
                         state['fans'][i]['tach_overflows'] = reading.get('overflows', 0)
                         state['fans'][i]['age_ms'] = reading.get('age_ms')
                     state['loop_lag_ms'] = self.max_lag_ms
@@ -316,6 +374,7 @@ class Controller:
                 self.heartbeat = ticks_ms()
         except BaseException as error:
             self.error = str(error)
+            self.request_shutdown('Controller error: ' + str(error))
             self.engine.stop('Controller error: ' + str(error))
             state = self._state()
             state['state'] = 'FAULT'

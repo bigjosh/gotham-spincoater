@@ -1,0 +1,4 @@
+Project Pico 8792b44d9c11021d on COM7
+TOUCH_DIAG_FAILED OSError(5,)
+TOUCH_BUS_SCAN []
+TOUCH_PINS [(8, 1), (9, 1), (10, 1), (11, 0)]

@@ -101,7 +101,7 @@ AUX_LINKS_DISCONNECTED = True
 ENABLED_CHANNELS = (0, 1, 2, 3, 4, 5)
 ```
 
-`ENABLED_CHANNELS` is the initial selection only. Existing touchscreen choices in `fans.json` take precedence; after reboot, use each tile's ENABLE/DISABLE button to select the newly connected fans. For incremental testing, select only connected fans, such as #0 and #4. The `AUX_LINKS_DISCONNECTED` flag is a manual declaration that the four connections have been isolated, **not an electrical test**. An enabled but unwired fan can cause the entire recipe to fault on missing tach. Leave `FUTURE_CHANNELS` and the PIO state-machine allocation unchanged.
+`ENABLED_CHANNELS` is the initial selection only. Existing touchscreen choices in `fans.json` take precedence; after reboot, use each tile's ENABLE/DISABLE button to select the newly connected fans. For incremental testing, select only connected fans, such as #0 and #4. The `AUX_LINKS_DISCONNECTED` flag is a manual declaration that the four connections have been isolated, **not an electrical test**. An enabled but unwired fan faults on missing tach and is excluded from the current run; other participating fans continue. Leave `FUTURE_CHANNELS` and the PIO state-machine allocation unchanged.
 
 With motor power still disconnected, power the Pico by USB. From the repository directory, deploy the edited configuration and reboot:
 

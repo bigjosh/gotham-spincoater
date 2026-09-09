@@ -127,6 +127,24 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(engine.snapshot()["fans"][0]["target_rpm"], 1500)
         self.assertEqual(engine.snapshot()["fans"][1]["target_rpm"], 1500)
 
+    def test_six_channel_ramp_continues_at_same_phase_after_one_fault(self):
+        engine = self.make(enabled=tuple(range(6)), recipe=profile(slew=2))
+        self.initial_zero(engine)
+        engine.update(1000, {channel: reading(100) for channel in range(6)})
+        previous = list(engine.duties)
+        readings = {channel: reading(1000) for channel in range(6)}
+        readings[3] = reading(stopped=True, fault='command_underrun')
+        engine.update(1500, readings)
+        self.assertEqual(engine.state, 'RAMP')
+        self.assertEqual(engine.target_rpm, 1500)
+        self.assertEqual(engine.snapshot()['phase_remaining_s'], 1)
+        self.assertEqual(engine.participating, (0, 1, 2, 4, 5))
+        self.assertEqual(engine.duties[3], 0)
+        self.assertEqual(engine.snapshot()['fans'][3]['target_rpm'], 0)
+        for channel in engine.participating:
+            self.assertGreater(engine.duties[channel], previous[channel])
+            self.assertEqual(engine.snapshot()['fans'][channel]['target_rpm'], 1500)
+
     def test_all_fans_must_settle_before_dwell(self):
         engine = self.make(enabled=(0, 1))
         self.initial_zero(engine)
@@ -151,13 +169,90 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(engine.snapshot()["phase_remaining_s"], remaining)
         self.assertIn("paused", engine.message)
 
-    def test_reach_timeout_faults_every_channel(self):
+    def test_reach_timeout_isolates_lagging_fan_and_preserves_healthy_settling(self):
         engine = self.make(enabled=(0, 1), reach_timeout_s=1)
         self.initial_zero(engine)
         for now in range(520, 1521, 20):
             engine.update(now, {0: reading(1000), 1: reading(3000)})
-        self.assertEqual(engine.state, "FAULT")
+        self.assertEqual(engine.state, "DWELL")
+        self.assertEqual(engine.participating, (1,))
+        self.assertIn('Timed out', engine.faults[0])
+        self.assertIsNone(engine.faults[1])
+        self.assertEqual(engine.duties[0], 0)
+        # The shared dwell can finish with the surviving fan; the faulted
+        # channel's absent reading and stop latch cannot hold up either end.
+        for now in range(1540, 3101, 20):
+            rpm = 3000 if engine.snapshot()['step'] == 2 else 0
+            engine.update(now, {0: reading(stopped=True), 1: reading(rpm)})
+        self.assertEqual(engine.state, 'COMPLETE')
+        self.assertIn('1 fan faulted', engine.message)
+        self.assertEqual(engine.enabled, (0, 1))
+
+    def test_reach_timeout_faults_unsettled_oscillating_fan_even_on_good_sample(self):
+        engine = self.make(enabled=(0, 1), reach_timeout_s=1)
+        self.initial_zero(engine)
+        for now in range(520, 1501, 20):
+            engine.update(now, {0: reading(3000),
+                                1: reading(3000 if now % 40 == 20 else 2000)})
+        self.assertEqual(engine.state, 'DWELL')
+        self.assertEqual(engine.participating, (0,))
+        self.assertIn('Timed out reaching', engine.faults[1])
+
+    def test_all_failed_never_vacuously_advance_or_complete(self):
+        engine = self.make(enabled=(0, 1), reach_timeout_s=1, recipe=profile(dwell=0))
+        self.initial_zero(engine)
+        for now in range(520, 1541, 20):
+            engine.update(now, {0: reading(1000), 1: reading(1000)})
+        self.assertEqual(engine.state, 'FAULT')
+        self.assertEqual(engine.participating, ())
+        self.assertEqual(engine.snapshot()['step'], 2)
+        self.assertEqual(engine.snapshot()['fault_count'], 2)
         self.assertEqual(engine.duties, [0] * 6)
+        engine.update(10000, {0: reading(0), 1: reading(0)})
+        self.assertEqual(engine.state, 'FAULT')
+
+    def test_dwell_recovery_timeout_is_per_fan_and_retains_earned_dwell(self):
+        engine = self.make(enabled=(0, 1), reach_timeout_s=1, recipe=profile(dwell=5))
+        self.initial_zero(engine)
+        for now in range(520, 1521, 20):
+            engine.update(now, {0: reading(3000), 1: reading(3000)})
+        self.assertEqual(engine.state, 'DWELL')
+        remaining = engine.snapshot()['phase_remaining_s']
+        for now in range(1540, 2501, 20):
+            engine.update(now, {0: reading(3000), 1: reading(2000)})
+        self.assertEqual(engine.snapshot()['phase_remaining_s'], remaining)
+        self.assertIsNone(engine.faults[1])
+        engine.update(2520, {0: reading(3000), 1: reading(2000)})
+        self.assertTrue(engine.running)
+        self.assertEqual(engine.participating, (0,))
+        self.assertIn('recovering target', engine.faults[1])
+        self.assertAlmostEqual(engine.snapshot()['phase_remaining_s'], remaining - .02)
+
+    def test_brief_in_band_samples_do_not_evade_dwell_recovery_timeout(self):
+        engine = self.make(enabled=(0, 1), reach_timeout_s=1, recipe=profile(dwell=5))
+        self.initial_zero(engine)
+        for now in range(520, 1021, 20):
+            engine.update(now, {0: reading(3000), 1: reading(3000)})
+        for now in range(1040, 2041, 20):
+            engine.update(now, {0: reading(3000),
+                                1: reading(3000 if now % 40 == 20 else 2000)})
+        self.assertEqual(engine.state, 'DWELL')
+        self.assertEqual(engine.participating, (0,))
+        self.assertIn('recovering target', engine.faults[1])
+
+    def test_stable_recovery_gives_later_drift_a_fresh_timeout(self):
+        engine = self.make(enabled=(0, 1), reach_timeout_s=1, recipe=profile(dwell=10))
+        self.initial_zero(engine)
+        for now in range(520, 1021, 20):
+            engine.update(now, {0: reading(3000), 1: reading(3000)})
+        for now in range(1040, 1441, 20):
+            engine.update(now, {0: reading(3000), 1: reading(2000)})
+        for now in range(1460, 1961, 20):
+            engine.update(now, {0: reading(3000), 1: reading(3000)})
+        for now in range(1980, 2761, 20):
+            engine.update(now, {0: reading(3000), 1: reading(2000)})
+        self.assertEqual(engine.faults, [None] * 6)
+        self.assertEqual(engine.participating, (0, 1))
 
     def test_missing_startup_tach_is_bounded_and_faults(self):
         engine = self.make(max_power_per_s=100)
@@ -229,6 +324,46 @@ class EngineTests(unittest.TestCase):
         engine.update(2100, {0: reading()})
         self.assertEqual(engine.state, "FAULT")
 
+    def test_missing_tach_parks_only_affected_channel_and_survivor_keeps_seeking(self):
+        engine = self.make(enabled=(0, 1))
+        self.initial_zero(engine)
+        engine.update(520, {0: reading(1000), 1: reading(1000)})
+        held_duty = engine.duties[1]
+        for now in range(540, 2021, 20):
+            engine.update(now, {0: reading(1000), 1: reading()})
+        self.assertTrue(engine.running)
+        self.assertGreater(engine.duties[0], held_duty)
+        self.assertEqual(engine.duties[1], 0)
+        self.assertEqual(engine.faults[1], 'tach signal missing')
+        before = engine.duties[0]
+        engine.update(2040, {0: reading(1000), 1: reading(stopped=True)})
+        self.assertGreater(engine.duties[0], before)
+        self.assertEqual(engine.faults[1], 'tach signal missing')
+
+    def test_fault_latch_is_per_attempt_and_start_retries_selected_fans(self):
+        engine = self.make(enabled=(0, 1))
+        engine.fault_channel(1, 'tach signal missing')
+        engine.fault_channel(1, 'later command_stall')
+        engine.update(20, {0: reading(0), 1: reading(0)})
+        state = engine.snapshot()
+        self.assertEqual(engine.participating, (0,))
+        self.assertTrue(state['fans'][1]['enabled'])
+        self.assertFalse(state['fans'][1]['participating'])
+        self.assertEqual(state['fans'][1]['fault'], 'tach signal missing')
+        self.assertEqual(state['fans'][1]['target_rpm'], 0)
+        self.assertEqual(state['fault_count'], 1)
+        engine.stop('STOP button')
+        self.assertEqual(engine.faults[1], 'tach signal missing')
+        engine.start(profile(), DEFAULT_SETTINGS, 40)
+        self.assertEqual(engine.faults, [None] * 6)
+        self.assertEqual(engine.participating, (0, 1))
+        self.assertFalse(engine.snapshot()['fans'][1]['valid'])
+        engine.fault_channel(1, 'fault after retry')
+        engine.stop()
+        engine.set_enabled((1,))
+        self.assertEqual(engine.faults, [None] * 6)
+        self.assertEqual(engine.participating, (1,))
+
     def test_emergency_latch_stops_all_and_does_not_rearm(self):
         engine = self.make(enabled=(0, 1))
         self.initial_zero(engine)
@@ -250,14 +385,38 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(engine.state, "STOPPED")
         self.assertEqual(engine.message, "STOP button")
 
-    def test_hardware_faults_have_priority_over_emergency_latch(self):
+    def test_hardware_fault_stopped_flag_is_local_and_does_not_stop_peer(self):
         for fault in ("command_underrun", "command_stall", "clock_changed"):
             engine = self.make(enabled=(0, 1))
-            engine.update(20, {0: reading(), 1: reading(stopped=True, fault=fault)})
-            self.assertEqual(engine.state, "FAULT")
-            self.assertIn(fault, engine.message)
-            self.assertIn("Fan 1", engine.message)
-            self.assertEqual(engine.duties, [0] * 6)
+            self.initial_zero(engine)
+            engine.update(520, {0: reading(1000), 1: reading(1000)})
+            before = engine.duties[0]
+            engine.update(540, {0: reading(1000), 1: reading(stopped=True, fault=fault)})
+            self.assertTrue(engine.running)
+            self.assertEqual(engine.faults[1], fault)
+            self.assertEqual(engine.participating, (0,))
+            self.assertGreater(engine.duties[0], before)
+            self.assertEqual(engine.duties[1], 0)
+
+    def test_emergency_on_healthy_channel_still_stops_all_during_peer_fault(self):
+        engine = self.make(enabled=(0, 1))
+        self.initial_zero(engine)
+        engine.update(520, {0: reading(1000), 1: reading(1000)})
+        engine.update(540, {0: reading(stopped=True),
+                            1: reading(stopped=True, fault='command_underrun')})
+        self.assertEqual(engine.state, 'STOPPED')
+        self.assertEqual(engine.message, 'Hardware emergency stop')
+        self.assertEqual(engine.faults[1], 'command_underrun')
+        self.assertEqual(engine.duties, [0] * 6)
+
+    def test_idle_last_channel_fault_has_no_remaining_participants(self):
+        engine = control.ControlEngine((0, 1))
+        engine.fault_channel(0, 'could not arm')
+        self.assertEqual(engine.state, 'IDLE')
+        engine.fault_channel(1, 'could not arm')
+        self.assertEqual(engine.state, 'FAULT')
+        self.assertEqual(engine.participating, ())
+        self.assertEqual(engine.duties, [0] * 6)
 
     def test_zero_endpoint_uses_quiet_without_claiming_measured_zero(self):
         engine = self.make()

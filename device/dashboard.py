@@ -3,6 +3,7 @@
 BG = 0x0842
 CARD = 0x10C4
 DISABLED_CARD = 0x7803
+FAULT_CARD = 0x6004
 DISABLED_BUTTON = 0xA106
 LOCKED_BUTTON = 0x5003
 WHITE = 0xEF7D
@@ -87,7 +88,7 @@ class Dashboard:
         fans = snapshot.get('fans', ())
         for channel in range(6):
             fan = fans[channel] if channel < len(fans) else {}
-            self._fan(channel, fan, state == 'FAULT', running)
+            self._fan(channel, fan, running=running)
         message = (snapshot.get('message') if state in ('ERROR', 'FAULT') else
                    self._notice or snapshot.get('message'))
         self._text('message', message or 'Tap ENABLE / DISABLE to choose participating fans',
@@ -98,25 +99,27 @@ class Dashboard:
         self._text('lag', 'LOOP %dms' % (snapshot.get('loop_lag_ms', 0) or 0),
                    384, 265, 88, color=MUTED)
 
-    def _fan(self, channel, fan, run_fault=False, running=False):
+    def _fan(self, channel, fan, running=False):
         prefix = 'fan%d:' % channel
         enabled = bool(fan.get('enabled', False))
         available = bool(fan.get('available', True))
+        fault = enabled and bool(fan.get('fault'))
         x, y = 8 + (channel % 3) * 156, 76 + (channel // 3) * 84
-        bg = CARD if enabled else DISABLED_CARD
-        if self._cache.get(prefix + 'enabled') != enabled:
+        bg = FAULT_CARD if fault else (CARD if enabled else DISABLED_CARD)
+        appearance = (enabled, fault)
+        if self._cache.get(prefix + 'appearance') != appearance:
             for key in list(self._cache):
                 if key.startswith(prefix):
                     del self._cache[key]
-            self._cache[prefix + 'enabled'] = enabled
+            self._cache[prefix + 'appearance'] = appearance
             self.display.fill_rect(x, y, 152, 80, bg)
             self.display.text('FAN #%d' % channel, x + 8, y + 13,
-                              CYAN if enabled else WHITE, bg=bg)
+                              CYAN if enabled and not fault else WHITE, bg=bg)
             self._yield()
-        duty = max(0, min(100, fan.get('duty', 0) or 0)) if enabled else 0
-        fault = enabled and (fan.get('fault') or run_fault)
-        label = 'LOCKED' if not available else ('RUN' if running else
-                                               ('DISABLE' if enabled else 'ENABLE'))
+        duty = max(0, min(100, fan.get('duty', 0) or 0)) if enabled and not fault else 0
+        label = 'LOCKED' if not available else (
+            ('FAULT' if fault else 'RUN') if running else
+            ('DISABLE' if enabled else 'ENABLE'))
         button_bg = (LOCKED_BUTTON if not available else
                      (TRACK if enabled else DISABLED_BUTTON))
         signature = (label, button_bg)
@@ -136,12 +139,12 @@ class Dashboard:
         else:
             number = '%d' % round(rpm)
         self._text(prefix + 'rpm', number, x + 8, y + 34, 136, 3,
-                   RED if fault else WHITE, bg)
+                   WHITE, bg)
         self._text(prefix + 'power', 'FAULT' if fault else 'PWM %3d%%' % round(duty),
                    x + 8, y + 60, 80,
-                   color=RED if fault else (MUTED if enabled else WHITE), bg=bg)
+                   color=MUTED if enabled and not fault else WHITE, bg=bg)
         self._text(prefix + 'unit', 'RPM', x + 112, y + 60, 32,
-                   color=MUTED if enabled else WHITE, bg=bg)
+                   color=MUTED if enabled and not fault else WHITE, bg=bg)
         pixels = round(136 * duty / 100)
         if self._cache.get(prefix + 'bar') != (pixels, bool(fault)):
             self._cache[prefix + 'bar'] = (pixels, bool(fault))

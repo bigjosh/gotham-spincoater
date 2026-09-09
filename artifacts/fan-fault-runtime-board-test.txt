@@ -1,0 +1,4 @@
+Project Pico 8792b44d9c11021d on COM7
+CORE1_LOCAL_FAULT_OK fan0 parked; other five PIO drivers stay armed
+SIX_PWM_LOW_OK target=0 duty=0; heartbeat current; saved files untouched
+FAULT_RUNTIME_BOARD_OK all outputs closed LOW; no positive-power commands

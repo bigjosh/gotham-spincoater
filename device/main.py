@@ -86,9 +86,10 @@ def run(duration_ms=None):
                 last_display = now
             if ticks_diff(now, last_report) >= 1000:
                 value = status()
-                fans = ' '.join('#%d:%s/%g%%' % (i,
+                fans = ' '.join('#%d:%s/%g%%%s' % (i,
                     str(round(f['rpm'])) if f['valid'] and f['rpm'] is not None else '--',
-                    f['duty']) for i, f in enumerate(value['fans']) if f['enabled'])
+                    f['duty'], ('[FAULT:%s]' % f['fault']) if f.get('fault') else '')
+                    for i, f in enumerate(value['fans']) if f['enabled'])
                 print('SPIN state=%s step=%s target=%.1f %s lag=%sms message=%s' %
                       (value['state'], value['step'], value['target_rpm'], fans,
                        value.get('loop_lag_ms', 0), value.get('message', '')))
