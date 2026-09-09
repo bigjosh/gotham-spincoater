@@ -1,0 +1,426 @@
+Project Pico 8792b44d9c11021d on COM7
+TACH_DIAGNOSTIC_BEGIN 60 seconds; START ignored; all PWM zero
+TOUCH_READY {'rotation': 1, 'product_id': '911', 'raw_resolution': (320, 480), 'last_raw': None, 'armed': False, 'last_error': None, 'error_count': 0, 'address': 93, 'firmware_version': 4192}
+TACH_INPUT 0 level None raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level None raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level None raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level None raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 6 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level None raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level None raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+GOTHAM_READY SSID=Gotham Spinner IP=192.168.4.1 CHANNELS=(0, 1, 2, 3, 4, 5) PWM=PIO10kHz CONTROL=CORE1/50Hz
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=0ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=2ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=5ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=5ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 13 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 10 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=5ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=5ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=5ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=5ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=5ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=5ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 10 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 5 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 15 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 1 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 0 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TOUCH_ERROR [Errno 110] ETIMEDOUT
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 1 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 15 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 5 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 6 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 1 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 1 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 16 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 7 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 28 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 5 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=19ms message=Ready
+TACH_INPUT 0 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 1 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 2 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 14 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 3 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 11 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 4 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 1 active True starts 1 pad 0x5a ctrl 0x5
+TACH_INPUT 5 level 1 raw_edges 0 rpm None raw 0.0 valid False period 0.0 samples 0 pulses 0 error None pc 8 active True starts 1 pad 0x5a ctrl 0x5
+TACH_DIAGNOSTIC_END

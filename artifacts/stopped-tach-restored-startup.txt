@@ -1,0 +1,6 @@
+Project Pico 8792b44d9c11021d on COM7
+TOUCH_READY {'rotation': 1, 'product_id': '911', 'raw_resolutionSPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=4ms message=Ready
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=4ms message=Ready
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=4ms message=Ready
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=4ms message=Ready
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=4ms message=Ready

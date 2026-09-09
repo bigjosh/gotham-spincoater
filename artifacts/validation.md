@@ -164,3 +164,20 @@ The zero-display threshold now affects presentation only. Raw RPM continues to f
 - **Normal application restored:** final reboot reported `TOUCH_READY` and `GOTHAM_READY`, retained the user's all-six selection, and remained IDLE with six numeric zeros at zero power. Maximum observed loop lag in the final short sample was 1 ms. The START/STOP label layout was unchanged. [Final startup](tach-continuity-startup.txt).
 
 These checks exercise real PIO edge timing, FIFO processing, hardware STOP, and the live core-1 pipeline. They do not measure physical fan coast-down or reproduce the user's negative reading. No positive-power motor command was issued during this update.
+
+## Physical tach at zero PWM — 2026-09-09
+
+The user subsequently reported RPM displays falling to zero while stopped/disabled fans were still visibly rotating, and confirmed all fans retained their 12 V supply. Source inspection found that ordinary STOP/disable leaves PIO capture and period averaging active. The earlier generated-input test bypassed the electrical tach source and could not establish actual coast-down behavior.
+
+A 60-second zero-power diagnostic kept the normal TFT active while ignoring START. All six tach pads had input enabled, pull-up enabled, isolation cleared, and no GPIO input override (`PAD=0x5a`, `CTRL=0x5`). All 360 channel observations showed active samplers, one initialization each, no driver error, and no observed raw GPIO transitions. The user did not confirm a manual spin during that particular window, so this alone did not diagnose the symptom. [Transcript](stopped-tach-physical-diagnostic.txt).
+
+The follow-up probe measured a real powered-to-zero transition on fan #0. After an announced 10-second zero-power countdown, it drove only #0 at **30% for four seconds**, then commanded **zero duty for one second**, invoked **software stop for one second**, and finally asserted **GP14 hardware STOP for three seconds**. Physical STOP remained functional during the motor run. All five other PWM pads stayed LOW. Tach GPIOs were not remuxed, driven, or overridden, and no synthetic pulses or scripted RPM were used.
+
+- During the run, raw physical falling edges matched PIO period words; the final mean reached approximately **1,276.6 RPM** with eight accepted periods in the window.
+- At zero duty, raw GPIO transitions and new PIO words stopped **before software disable or hardware STOP**. The counts remained at **156 raw transitions, 78 falling edges, and 78 PIO words** throughout the five-second zero-power observation. The raw input stayed HIGH.
+- The sampler remained active in its normal instruction loop, with `capture_starts=1`, no driver error, and no FIFO overflow. The last mean remained approximately1,276.6 RPM through age1,457ms; at age1,559ms the configured timeout changed the result to0/invalid and cleared the window. This was a missing-pulse timeout, not a STOP-driven reset.
+- [Full measured transition](physical-coast-tach-diagnostic.txt), [reproducible probe](../tools/diagnose_coast_tach.py). TFT updates introduce an approximately246ms gap before the first zero-duty diagnostic line, so the transcript does not determine the exact electrical shutoff latency.
+
+This establishes that the tested fan/interface supplies no continuing tach transitions at zero PWM in this run. It does not identify the fan's internal controller or measure mechanical coast-down independently, and it does not establish identical behavior on all other units. Continuous PIO sampling cannot recover actual shaft speed from an unchanging tach signal. Disabled fans also receive zero PWM, consistent with the user's observation.
+
+No production firmware or saved settings were changed. Both diagnostic wrappers restored their temporary state, and the normal application was rebooted afterward and observed IDLE at zero power. [Restored application](physical-coast-restored-startup.txt). COM4/COM5 were not accessed. The previously passing294 host tests were not rerun because device code was unchanged.
