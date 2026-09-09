@@ -166,7 +166,7 @@ class PioFanTests(unittest.TestCase):
             fan.close()
 
     def test_six_channels_have_unique_tx_dreq_and_share_program(self):
-        pins = ((18, 19), (20, 21), (22, 28), (0, 1), (12, 16), (13, 17))
+        pins = ((18, 19), (20, 21), (22, 28), (1, 0), (13, 12), (16, 17))
         fans = [self.fan(*pair, sm) for pair, sm in zip(pins, (0, 1, 2, 3, 8, 9))]
         self.assertEqual([f._dma.configured['ctrl']['treq_sel'] for f in fans],
                          [0, 1, 2, 3, 16, 17])

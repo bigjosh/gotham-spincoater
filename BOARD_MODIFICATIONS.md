@@ -10,9 +10,9 @@ Orient the board as in the photograph: Pico socket at the left, its USB end at t
 
 | GPIO to reclaim | Physical pin | Kit connection to isolate | Where to look | New function |
 | --- | ---: | --- | --- | --- |
-| GP12 | 16 | RGB LED data input | White square RGB LED below the display, immediately right of the joystick; nearby resistor | Fan #4 PWM |
-| GP13 | 17 | Buzzer driver's GPIO input | Round beeper at lower left; Q1 and nearby resistor bank between it and the joystick | Fan #5 PWM |
-| GP16 | 21 | D1 indicator LED branch | Top entry of the small D1–D4 bank between beeper and joystick; marked GP16 | Fan #4 tach |
+| GP12 | 16 | RGB LED data input | White square RGB LED below the display, immediately right of the joystick; nearby resistor | Fan #4 tach |
+| GP13 | 17 | Buzzer driver's GPIO input | Round beeper at lower left; Q1 and nearby resistor bank between it and the joystick | Fan #4 PWM |
+| GP16 | 21 | D1 indicator LED branch | Top entry of the small D1–D4 bank between beeper and joystick; marked GP16 | Fan #5 PWM |
 | GP17 | 22 | D2 indicator LED branch | Second entry of that bank; marked GP17 | Fan #5 tach |
 
 Assignments are confirmed by the [52Pi pin table](https://wiki.52pi.com/index.php?title=EP-0172) and [manufacturer example README](https://github.com/geeekpi/pico_breadboard_kit#pinout). Locations are visible in the manufacturer's photograph below.
@@ -83,10 +83,12 @@ Reinstall a removed Pico in its original orientation with both rows fully aligne
 
 | Connection | Fan #4 | Fan #5 |
 | --- | --- | --- |
-| Fan pin 4, PWM | GP12, physical pin 16 | GP13, physical pin 17 |
-| Fan pin 3, tach | GP16, physical pin 21 | GP17, physical pin 22 |
+| Fan pin 4, PWM | GP13, physical pin 17 | GP16, physical pin 21 |
+| Fan pin 3, tach | GP12, physical pin 16 | GP17, physical pin 22 |
 | Fan pin 1, ground | Supply negative and Pico GND | Supply negative and Pico GND |
 | Fan pin 2, motor power | External +12 V | External +12 V |
+
+These revised pairs place tach above PWM with the Pico USB connector at the top: fan #4 uses the left header and fan #5 the right. They replace the earlier cross-header pairs. Fan #3 also changes to GP1 PWM / GP0 tach; see the [complete pinout](PINOUT.md). Rewire these channels with power disconnected before deploying the new map.
 
 Use an individual PWM and tach connection for each fan; do not join tach outputs or use a shared PWM splitter for independently controlled channels. Identify fan connector pins by their key and numbering, since wire colors vary. The [fan wiring and power-order instructions](README.md#connect-fan-0) apply to every channel. Each enabled tach input has an internal 3.3 V pull-up; the optional external 4.7 kΩ pull-up goes to **3V3(OUT)**, never 12 V.
 

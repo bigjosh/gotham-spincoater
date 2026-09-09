@@ -65,7 +65,27 @@ class RigTests(unittest.TestCase):
         rig = self.module.FanRig()
         self.assertEqual(list(rig.fans), [0, 1, 2, 3])
         self.assertEqual([(fan.pwm, fan.tach) for fan in self.constructed],
-                         [(18, 19), (20, 21), (22, 28), (0, 1)])
+                         [(18, 19), (20, 21), (22, 28), (1, 0)])
+
+    def test_pwm_is_immediately_below_tach_except_fan_two(self):
+        # Physical Pico header positions, independent of GPIO numbering:
+        # left pins count down 1..20; right pins count down 40..21.
+        physical = {0: 1, 1: 2, 12: 16, 13: 17, 16: 21, 17: 22,
+                    18: 24, 19: 25, 20: 26, 21: 27, 22: 29, 28: 34}
+
+        def position(gpio):
+            pin = physical[gpio]
+            return (0, pin) if pin <= 20 else (1, 41 - pin)
+
+        self.assertEqual(self.config.FUTURE_CHANNELS[2], (22, 28))
+        for channel, (pwm, tach) in enumerate(self.config.FUTURE_CHANNELS):
+            if channel == 2:
+                continue
+            with self.subTest(channel=channel):
+                pwm_side, pwm_row = position(pwm)
+                tach_side, tach_row = position(tach)
+                self.assertEqual(pwm_side, tach_side)
+                self.assertEqual(pwm_row, tach_row + 1)
 
     def test_rejects_empty_duplicate_or_missing_primary_channels(self):
         for ids in ((), (1,), (0, 0), (0, 1, 1)):

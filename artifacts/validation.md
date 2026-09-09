@@ -79,3 +79,9 @@ Added ENABLE/DISABLE buttons to the six-card TFT. Disabled cards have a red back
 The builder reported completing the GPIO modifications and requested unlocking fans #4/#5. Set `AUX_LINKS_DISCONNECTED = True`; all six channels are now hardware-available to the runtime and touchscreen. The initial selection stays `(0, 1, 2, 3)`, and saved `fans.json` selections are preserved. Fans #4/#5 offer ENABLE rather than LOCKED until selected.
 
 All **219 host tests passed**, including the updated shipped-configuration expectation and explicit unmodified-kit guard tests. Updated the header map, modification status, and rendered dashboard preview. No new electrical or motor test was performed; the project Pico remains disconnected, so deployment and physical touch verification are still pending.
+
+## Adjacent signal pairs with PWM below tach — 2026-09-08
+
+Reassigned fans #3–#5 so their PWM pin sits immediately below their tach pin on the same header, viewed with the Pico USB connector at the top. PWM/tach pairs are now **#0 GP18/19, #1 GP20/21, #2 GP22/28, #3 GP1/0, #4 GP13/12, #5 GP16/17**. Fan #2 retains its nonadjacent pair as requested; fans #0/#1 already met the placement rule. Fan numbers, saved selections, recipes, and PIO state-machine allocation are unchanged.
+
+All **220 host tests passed**, including a new check against physical header positions and updated six-channel driver/runtime fixtures. Documentation now groups RGB/buzzer isolation under fan #4 and D1/D2 isolation under fan #5. This pin map has not been deployed or tested electrically; fans #3–#5 require rewiring with power disconnected before deployment.

@@ -139,9 +139,11 @@ See [the complete header map](PINOUT.md), with the Pico's USB connector at the t
 | 0 | GP18 (pin 24) | GP19 (pin 25) | None; available, selected by default |
 | 1 | GP20 (pin 26) | GP21 (pin 27) | None; available, selected by default |
 | 2 | GP22 (pin 29) | GP28 (pin 34) | None; available, selected by default; tach stays at 3.3 V |
-| 3 | GP0 (pin 1) | GP1 (pin 2) | None; available, selected by default |
-| 4 | GP12 (pin 16) | GP16 (pin 21) | RGB and D1 isolation confirmed; available, initially disabled |
-| 5 | GP13 (pin 17) | GP17 (pin 22) | Beeper and D2 isolation confirmed; available, initially disabled |
+| 3 | GP1 (pin 2) | GP0 (pin 1) | None; available, selected by default |
+| 4 | GP13 (pin 17) | GP12 (pin 16) | RGB and beeper isolation confirmed; available, initially disabled |
+| 5 | GP16 (pin 21) | GP17 (pin 22) | D1 and D2 isolation confirmed; available, initially disabled |
+
+With the Pico's USB connector at the top, each pair places **tach immediately above PWM**, on the same header. Fan #2 keeps its nonadjacent GP22/GP28 assignment. **Fans #3–#5 must be rewired for this map before deployment**, with power disconnected; #0–#2 are unchanged. Saved fan selections and recipe settings stay associated with their fan numbers.
 
 Preserve GP2–11 for display/touch, GP14/15 for buttons, and GP26/27 for the kit joystick. GP4 is physically connected to TFT MISO even though the display driver does not read it.
 

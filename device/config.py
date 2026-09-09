@@ -19,7 +19,9 @@ JOYSTICK_Y_SIGN = -1
 # The first four fan pairs are available without modifying the kit.
 # The builder confirmed RGB/buzzer/D1/D2 isolation for channels #4/#5.
 # Keep all TFT/touch/joystick/button connections intact.
-FUTURE_CHANNELS = ((18, 19), (20, 21), (22, 28), (0, 1), (12, 16), (13, 17))
+# Each tuple is (PWM, tach). With USB at the top, PWM is immediately below
+# tach on the same header, except fan #2's unchanged GP22/GP28 pair.
+FUTURE_CHANNELS = ((18, 19), (20, 21), (22, 28), (1, 0), (13, 12), (16, 17))
 # One PIO SM and one DMA channel per enabled fan; leave PIO1 for wireless.
 TACH_STATE_MACHINES = (0, 1, 2, 3, 8, 9)
 # Initial selection only; touchscreen choices persist separately in fans.json.

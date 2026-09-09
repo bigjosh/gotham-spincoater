@@ -137,7 +137,7 @@ class RuntimeTests(unittest.TestCase):
         config = types.ModuleType("config")
         config.ENABLED_CHANNELS = (0,)
         config.AUX_LINKS_DISCONNECTED = False
-        config.FUTURE_CHANNELS = ((18, 19), (20, 21), (22, 28), (0, 1), (12, 16), (13, 17))
+        config.FUTURE_CHANNELS = ((18, 19), (20, 21), (22, 28), (1, 0), (13, 12), (16, 17))
         config.TACH_STATE_MACHINES = (0, 1, 2, 3, 8, 9)
         config.BUTTON_START, config.BUTTON_STOP, config.PERIOD_AVERAGE = 15, 14, 8
         config.PULSES_PER_REV = 2
@@ -429,7 +429,7 @@ class RuntimeTests(unittest.TestCase):
         self.config.ENABLED_CHANNELS = (0, 4, 5)
         controller = self.controller()
         self.assertEqual(controller.enabled, (0,))
-        self.assertEqual([fan.pwm for fan in FakeFan.all], [18, 20, 22, 0])
+        self.assertEqual([fan.pwm for fan in FakeFan.all], [18, 20, 22, 1])
         for i in (4, 5):
             with self.assertRaisesRegex(ValueError, 'disconnect the kit links'):
                 controller.set_fan_enabled(i, True)

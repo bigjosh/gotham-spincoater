@@ -4,10 +4,12 @@ View the Pico from above with its USB socket at the top. The middle columns are 
 
 **FAN #n** marks the six-channel firmware allocation; it does not confirm external wiring. **All six fans are available. Fans #0–#3 are enabled by default; #4/#5 can be enabled by touch.** Selections persist across reboots. A **†** marks a reclaimed GPIO; the former kit connection appears in parentheses. On an unmodified kit, these four connections must be isolated before use.
 
+**Each fan has tach above PWM on the same header, with PWM closer to the bottom.** Fan #2 is the exception: its nonadjacent GP22/GP28 pair stays unchanged. Fans #3–#5 use the revised wiring below; rewire them with power disconnected before deploying this pin map. Fans #0–#2 keep their previous assignments.
+
 | Left header | Pin | Pin | Right header |
 | --- | ---: | :--- | --- |
-| **GP0 — FAN #3 PWM** | 1 | 40 | VBUS — USB 5 V |
-| **GP1 — FAN #3 tach** | 2 | 39 | VSYS — system power |
+| **GP0 — FAN #3 tach** | 1 | 40 | VBUS — USB 5 V |
+| **GP1 — FAN #3 PWM** | 2 | 39 | VSYS — system power |
 | GND | 3 | 38 | GND |
 | GP2 — TFT clock | 4 | 37 | 3V3_EN — regulator enable |
 | GP3 — TFT data in (MOSI) | 5 | 36 | 3V3(OUT) — 3.3 V supply |
@@ -21,11 +23,11 @@ View the Pico from above with its USB socket at the top. The middle columns are 
 | GND | 13 | 28 | GND |
 | GP10 — touch reset* | 14 | 27 | **GP21 — FAN #1 tach** |
 | GP11 — touch interrupt* | 15 | 26 | **GP20 — FAN #1 PWM** |
-| **GP12 — FAN #4 PWM†** (RGB isolated) | 16 | 25 | **GP19 — FAN #0 tach** |
-| **GP13 — FAN #5 PWM†** (buzzer isolated) | 17 | 24 | **GP18 — FAN #0 PWM** |
+| **GP12 — FAN #4 tach†** (RGB isolated) | 16 | 25 | **GP19 — FAN #0 tach** |
+| **GP13 — FAN #4 PWM†** (buzzer isolated) | 17 | 24 | **GP18 — FAN #0 PWM** |
 | GND | 18 | 23 | GND |
 | GP14 — BTN2 (stop) | 19 | 22 | **GP17 — FAN #5 tach†** (D2 isolated) |
-| GP15 — BTN1 (START) | 20 | 21 | **GP16 — FAN #4 tach†** (D1 isolated) |
+| GP15 — BTN1 (START) | 20 | 21 | **GP16 — FAN #5 PWM†** (D1 isolated) |
 
 Header locations follow the [Raspberry Pi Pico 2 W datasheet, figures 2 and 4](https://pip.raspberrypi.com/documents/RP-008304-DS). Peripheral assignments follow the [52Pi EP-0172 documentation](https://wiki.52pi.com/index.php?title=EP-0172). *GP4, GP10 and GP11 are marked on the [manufacturer's board photograph](https://wiki.52pi.com/images/thumb/4/4d/EP-0127-14.jpg/800px-EP-0127-14.jpg), although absent from its short software pin table.
 
@@ -36,9 +38,9 @@ Header locations follow the [Raspberry Pi Pico 2 W datasheet, figures 2 and 4](h
 | **#0** | GP18 (24) | GP19 (25) | Available; enabled by default |
 | **#1** | GP20 (26) | GP21 (27) | Available; enabled by default |
 | **#2** | GP22 (29) | GP28 (34) | Available; enabled by default; tach pull-up to 3.3 V only |
-| **#3** | GP0 (1) | GP1 (2) | Available; enabled by default |
-| **#4** | GP12 (16) | GP16 (21) | Available; initially disabled; RGB/D1 isolation confirmed |
-| **#5** | GP13 (17) | GP17 (22) | Available; initially disabled; buzzer/D2 isolation confirmed |
+| **#3** | GP1 (2) | GP0 (1) | Available; enabled by default |
+| **#4** | GP13 (17) | GP12 (16) | Available; initially disabled; RGB/buzzer isolation confirmed |
+| **#5** | GP16 (21) | GP17 (22) | Available; initially disabled; D1/D2 isolation confirmed |
 
 The unmodified kit provides **GP0, GP1, GP18, GP19, GP20, GP21, GP22 and GP28** for four PWM/tach pairs. This project's modifications reclaim four additional GPIOs for six pairs. Disabling a fan through touch holds its PWM LOW and does not free its GPIOs for another purpose. The left-side pair, GP0/GP1, serves fan #3.
 
@@ -48,4 +50,4 @@ See **[Freeing the kit pins for six fans](BOARD_MODIFICATIONS.md)** for componen
 
 GP28 supports digital input/output as well as ADC2. In this project's direct fan interface, reserve it for **tach with a 3.3 V pull-up**, not the fan's potentially higher-voltage PWM input. Power, reset and ground pins are not spare GPIOs. GP23–25 and GP29 are not exposed on these headers; they serve the Pico 2 W's internal wireless circuitry.
 
-Current fan allocation was checked against `device/config.py` on 2026-09-08. Unlocking fans #4/#5 keeps the original six-channel pin allocation unchanged.
+Current fan allocation was checked against `device/config.py` on 2026-09-08. Fans #3–#5 were remapped to adjacent pairs with PWM below tach; #0–#2 are unchanged.
