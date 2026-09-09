@@ -6,7 +6,7 @@
 
 MicroPython controller for **Raspberry Pi Pico 2 W**, six **ARCTIC P12 Pro** fans, and the **52Pi/GeeekPi Pico Breadboard Kit Plus (EP-0172)**. Each enabled fan independently adjusts PWM power to follow one shared RPM target. A TFT dashboard displays all six channels; a local Wi-Fi page edits recipes.
 
-**Only fan #0 is enabled and physically connected in the current setup.**
+**Fans #0–#3 are enabled.** These four pairs use GPIOs free of kit peripherals; fans #4/#5 remain disabled until their occupied GPIOs are physically isolated. Connect all four enabled fans before pressing START: missing tach on any enabled channel faults the whole recipe. Physical spin testing so far covers fan #0; enabling the other channels does not establish that they are wired or tested.
 
 **Building all six channels? [Board modification guide: free the four auxiliary GPIOs](BOARD_MODIFICATIONS.md)** — component locations, connection tracing, desoldering, continuity checks, wiring, and firmware setup.
 
@@ -126,16 +126,16 @@ See [the complete header map](PINOUT.md), with the Pico's USB connector at the t
 
 | Fan | PWM | Tach | Kit changes |
 | --- | --- | --- | --- |
-| 0 | GP18 (pin 24) | GP19 (pin 25) | None; currently enabled |
-| 1 | GP20 (pin 26) | GP21 (pin 27) | None |
-| 2 | GP22 (pin 29) | GP28 (pin 34) | None; tach stays at 3.3 V |
-| 3 | GP0 (pin 1) | GP1 (pin 2) | None |
+| 0 | GP18 (pin 24) | GP19 (pin 25) | None; enabled |
+| 1 | GP20 (pin 26) | GP21 (pin 27) | None; enabled |
+| 2 | GP22 (pin 29) | GP28 (pin 34) | None; enabled; tach stays at 3.3 V |
+| 3 | GP0 (pin 1) | GP1 (pin 2) | None; enabled |
 | 4 | GP12 (pin 16) | GP16 (pin 21) | Disconnect RGB and D1 links |
 | 5 | GP13 (pin 17) | GP17 (pin 22) | Disconnect beeper and D2 links |
 
 Preserve GP2–11 for display/touch, GP14/15 for buttons, and GP26/27 for the kit joystick. GP4 is physically connected to TFT MISO even though the display driver does not read it.
 
-`device/config.py` selects **`ENABLED_CHANNELS = (0,)`**. Add channels after wiring them. Channels #4/#5 require `AUX_LINKS_DISCONNECTED = True` after physical link disconnection; that modification has not been made. Every enabled fan follows the shared RPM target with its own PWM correction.
+`device/config.py` selects **`ENABLED_CHANNELS = (0, 1, 2, 3)`** with **`AUX_LINKS_DISCONNECTED = False`**. The unmodified kit provides four independent pairs, not five. Both channels #4/#5 require physical link disconnection before setting the flag to `True`; that modification has not been made. Every enabled fan follows the shared RPM target with its own PWM correction. For a one-fan bench setup, select `(0,)` and deploy that configuration before starting a recipe.
 
 ### Preparing the kit for fans #4 and #5
 

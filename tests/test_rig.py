@@ -59,14 +59,13 @@ class RigTests(unittest.TestCase):
             self.module.FanRig()
         self.assertEqual(self.attempted, [])
 
-    def test_shipped_configuration_constructs_only_fan_zero(self):
-        self.assertEqual(self.config.ENABLED_CHANNELS, (0,))
+    def test_shipped_configuration_constructs_four_unmodified_kit_channels(self):
+        self.assertEqual(self.config.ENABLED_CHANNELS, (0, 1, 2, 3))
         self.assertFalse(self.config.AUX_LINKS_DISCONNECTED)
         rig = self.module.FanRig()
-        self.assertEqual(list(rig.fans), [0])
-        self.assertEqual(len(self.constructed), 1)
-        self.assertEqual((self.constructed[0].pwm, self.constructed[0].tach),
-                         (18, 19))
+        self.assertEqual(list(rig.fans), [0, 1, 2, 3])
+        self.assertEqual([(fan.pwm, fan.tach) for fan in self.constructed],
+                         [(18, 19), (20, 21), (22, 28), (0, 1)])
 
     def test_rejects_empty_duplicate_or_missing_primary_channels(self):
         for ids in ((), (1,), (0, 0), (0, 1, 1)):

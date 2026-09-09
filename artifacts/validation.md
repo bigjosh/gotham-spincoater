@@ -54,3 +54,12 @@ Implementation checks on hardware caught unsupported string-form injected JMP in
 At zero power, absent tach is reported as invalid and quiet is explicitly inferred, not measured shaft standstill. The 3,000 RPM result depends on the existing supply/fan and the configured two tach pulses per revolution; it is not an independent tach calibration or a measured absolute maximum. Six physically wired motors remain untested. The user's successful 10 kHz bench setting remains below ARCTIC's stated 21–28 kHz range.
 
 After testing, the temporary PC Wi-Fi profile was removed and the adapter restored to disconnected; Ethernet stayed up. The Pico was rebooted into the normal application at zero power with only fan #0 enabled. The helper continued to identify only USB serial 8792b44d9c11021d on COM7; COM4/COM5 were never opened. Saved user recipes are separate from the disposable test recipe file.
+
+## Four channels on the unmodified kit — 2026-09-08
+
+Enabled fans **#0–#3** using PWM/tach pairs **GP18/19, GP20/21, GP22/28, and GP0/1**. Both remaining pairs use occupied kit GPIOs, so #4/#5 remain disabled and `AUX_LINKS_DISCONNECTED` remains `False`. No control algorithm, pin allocation, PIO code, or recipe data changed.
+
+- **147 host tests passed**, including the updated shipped-configuration check for four distinct fan pairs and existing allocation, auxiliary-link guard, control, STOP, and dashboard tests.
+- Deployed only `config.py`, with SHA-256 readback verification, to project Pico USB serial **8792b44d9c11021d** on COM7. [Upload transcript](four-fan-deploy.txt), [reboot transcript](four-fan-reboot.txt).
+- Normal startup reported `CHANNELS=(0, 1, 2, 3)` with PIO 10 kHz and core-1 50 Hz control. The eight-second monitor showed all four channels idle at **0% requested power**, no valid tach, and a reported maximum loop lag of 0 ms during that observation. [Startup transcript](four-fan-startup.txt).
+- No recipe or motor-spin test was initiated for this change; physical wiring and spin behavior of fans #1–#3 remain unverified. All enabled channels must be connected before START, or the missing-tach protection will fault the run. COM4 and COM5 were not opened.

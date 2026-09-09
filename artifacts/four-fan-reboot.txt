@@ -1,0 +1,2 @@
+Project Pico 8792b44d9c11021d on COM7
+Project Pico reboot requested; monitor its startup after USB reconnects.

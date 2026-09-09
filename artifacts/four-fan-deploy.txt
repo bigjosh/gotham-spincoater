@@ -1,0 +1,3 @@
+Project Pico 8792b44d9c11021d on COM7
+Verified upload: config.py (1144 bytes)
+Application files installed
