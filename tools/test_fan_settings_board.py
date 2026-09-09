@@ -6,7 +6,6 @@ and recipes.json, and leaves outputs LOW. Reboot into the normal app afterward.
 """
 import os
 from time import sleep_ms, ticks_ms, ticks_diff
-from machine import Pin
 from recipes import RecipeBook
 from fan_settings import FanSettings
 from runtime import Controller
@@ -37,7 +36,7 @@ try:
         assert actual == selected, (actual, selected)
         assert not state['running'], state
         assert all(fan['duty'] == 0 for fan in state['fans']), state
-        assert all(Pin(config.FUTURE_CHANNELS[i][0]).value() == 0
+        assert all(controller.fans[i].pwm_is_low()
                    for i in controller.available), 'PWM pad not LOW'
         assert not controller.finished and not controller.closing, controller.error
         assert ticks_diff(ticks_ms(), controller.heartbeat) < 500, 'Worker heartbeat stalled'

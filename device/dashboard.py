@@ -130,12 +130,12 @@ class Dashboard:
             self.display.text(label, x + 76 + (72 - len(label) * 8) // 2,
                               y + 13, WHITE, bg=button_bg)
             self._yield()
-        rpm = fan.get('rpm', 0) or 0
-        if not enabled:
-            number = '--'
-        elif not fan.get('valid', False):
-            number = '--'
-        elif rpm >= 100000:
+        # The controller applies the zero threshold once, independently of
+        # fan selection, run state, and raw tach validity.
+        rpm = fan.get('display_rpm')
+        if rpm is None:
+            rpm = (fan.get('rpm') or 0) if fan.get('valid', False) else 0
+        if rpm >= 100000:
             number = '%dk' % round(rpm / 1000)
         else:
             number = '%d' % round(rpm)

@@ -5,7 +5,8 @@
     "max_power_per_s": 10,
     "tolerance_rpm": 50,
     "rpm_warning_percent": 5,
-    "rpm_warning_delay_s": 2
+    "rpm_warning_delay_s": 2,
+    "rpm_zero_threshold": 60
   },
   "profiles": [
     {

@@ -10,7 +10,7 @@ header{display:flex;justify-content:space-between;align-items:center;gap:20px;ma
 label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}input,select,button{font:inherit;border:1px solid var(--line);border-radius:8px;padding:9px 11px;max-width:100%;color:var(--text);background:#111b1e}input,select{width:100%}button{cursor:pointer;white-space:nowrap}button:hover{border-color:var(--accent)}button.primary{background:var(--accent);color:#092a24;border-color:var(--accent);font-weight:750}button.danger{color:var(--red)}button:disabled{opacity:.4;cursor:default}input:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}input:disabled{color:var(--muted);background:transparent}fieldset{padding:0;margin:0;border:0;min-width:0}.field{margin:14px 0}.field small{display:block;margin-top:5px;font-size:12px}
 .steps{width:100%;border-collapse:collapse;margin:18px 0}.steps th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:6px}.steps td{padding:5px}.steps td:first-child{width:26px;color:var(--muted);font-size:12px}.steps td:last-child{width:32px}.steps button{padding:8px;color:var(--red)}.steps input{min-width:65px;padding:9px 7px}.steps th:nth-child(2){width:34%}svg{display:block;width:100%;height:126px;background:#111b1e;border-radius:10px}#notice{min-height:23px;margin:12px 0 0;color:var(--accent)}#notice.error{color:var(--red)}.footer-actions{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:20px}.settings label{color:var(--text)}.settings .unit{font-size:12px;color:var(--muted)}
 .fan.warning{background:#600820;border-color:var(--red)}.fan.warning .bar i{background:var(--red)}.rpm-warning{display:block;margin-top:4px;color:var(--red);font-size:11px;overflow-wrap:anywhere}
-.driver-error{display:block;margin-top:4px;color:var(--muted);font-size:11px;overflow-wrap:anywhere}
+.driver-error,.tach-status{display:block;margin-top:4px;color:var(--muted);font-size:11px;overflow-wrap:anywhere}
 @media(max-width:780px){.layout{grid-template-columns:1fr}.fans{grid-template-columns:repeat(3,1fr)}header{align-items:flex-start}.panel{padding:16px}.settings{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}.settings h2,.settings p{grid-column:1/-1}}
 @media(max-width:430px){main{padding:20px 12px}.steps th{font-size:10px;padding:4px}.steps td{padding:3px}.steps input{min-width:50px}.pill{font-size:12px}.settings{display:block}}
 </style></head><body><main>
@@ -28,16 +28,18 @@ label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}input,se
 <div class="field"><label for="tolerance">Seeker deadband <span class="unit">(RPM)</span></label><input id="tolerance" type="number" min="1" max="500" step="1" required><small>Power stays steady inside this RPM difference. Also sets the warning band at a zero RPM target.</small></div>
 <div class="field"><label for="warning-percent">RPM warning threshold <span class="unit">(%)</span></label><input id="warning-percent" type="number" min="0.1" max="100" step="0.1" required><small>Allowed percentage difference from a nonzero RPM target before warning time starts.</small></div>
 <div class="field"><label for="warning-delay">RPM warning delay <span class="unit">(s)</span></label><input id="warning-delay" type="number" min="0" max="120" step="0.1" required><small>Continuous time outside the band before turning red. Zero warns immediately; color clears on recovery. Power stays under speed control.</small></div>
+<div class="field"><label for="rpm-zero">Show zero below <span class="unit">(RPM)</span></label><input id="rpm-zero" type="number" min="0" max="1000" step="1" required><small>Default 60 RPM. Readings below this display as 0; the boundary remains visible. Set 0 to disable the cutoff. Speed control still uses raw RPM.</small></div>
 <p class="small">These settings apply to every recipe. Configuration is locked while a run is active.</p></aside></div>
 <div class="footer-actions"><div class="row"><button type="submit" class="primary" id="save">Save to coater</button><button type="button" id="import">Import JSON</button></div><span class="small muted">Motor start is available only on the coater.</span></div></fieldset></form>
 <div class="footer-actions"><button type="button" id="export">Export JSON</button><span id="saved" class="small muted">Changes stay in this page until saved.</span></div><input type="file" id="file" accept="application/json,.json" hidden><div id="notice" role="status" aria-live="polite"></div>
 </main><script>
 'use strict';
-const $=id=>document.getElementById(id), defaults={max_power_per_s:10,tolerance_rpm:50,rpm_warning_percent:5,rpm_warning_delay_s:2};
-const settingLimits={max_power_per_s:[0.1,100],tolerance_rpm:[1,500],rpm_warning_percent:[0.1,100],rpm_warning_delay_s:[0,120]};
+const $=id=>document.getElementById(id), defaults={max_power_per_s:10,tolerance_rpm:50,rpm_warning_percent:5,rpm_warning_delay_s:2,rpm_zero_threshold:60};
+const settingLimits={max_power_per_s:[0.1,100],tolerance_rpm:[1,500],rpm_warning_percent:[0.1,100],rpm_warning_delay_s:[0,120],rpm_zero_threshold:[0,1000]};
+const previousLimits={max_power_per_s:[0.1,100],tolerance_rpm:[1,500],rpm_warning_percent:[0.1,100],rpm_warning_delay_s:[0,120]};
 const legacyLimits={max_power_per_s:[0.1,100],tolerance_rpm:[1,500],settle_s:[0.05,10],reach_timeout_s:[1,120]};
-const settingLabels={max_power_per_s:'Power change limit',tolerance_rpm:'Seeker deadband',rpm_warning_percent:'RPM warning threshold',rpm_warning_delay_s:'RPM warning delay',settle_s:'Legacy settle time',reach_timeout_s:'Legacy reach timeout'};
-const settingFields=[['power','max_power_per_s'],['tolerance','tolerance_rpm'],['warning-percent','rpm_warning_percent'],['warning-delay','rpm_warning_delay_s']];
+const settingLabels={max_power_per_s:'Power change limit',tolerance_rpm:'Seeker deadband',rpm_warning_percent:'RPM warning threshold',rpm_warning_delay_s:'RPM warning delay',rpm_zero_threshold:'Show zero below',settle_s:'Legacy settle time',reach_timeout_s:'Legacy reach timeout'};
+const settingFields=[['power','max_power_per_s'],['tolerance','tolerance_rpm'],['warning-percent','rpm_warning_percent'],['warning-delay','rpm_warning_delay_s'],['rpm-zero','rpm_zero_threshold']];
 let cfg=null,running=false,dirty=false;
 const clone=x=>JSON.parse(JSON.stringify(x));
 const selected=()=>cfg.profiles.find(p=>p.name===cfg.selected);
@@ -50,10 +52,11 @@ function validate(value){
  const s=value.settings;
  if(!s||typeof s!=='object'||Array.isArray(s))throw Error('Include complete run settings.');
  const matches=limits=>Object.keys(s).length===Object.keys(limits).length&&Object.keys(limits).every(k=>Object.prototype.hasOwnProperty.call(s,k));
- const legacy=matches(legacyLimits),limits=legacy?legacyLimits:settingLimits;
- if(!legacy&&!matches(settingLimits))throw Error('Include a complete set of run settings.');
+ const legacy=matches(legacyLimits),previous=matches(previousLimits),limits=legacy?legacyLimits:previous?previousLimits:settingLimits;
+ if(!legacy&&!previous&&!matches(settingLimits))throw Error('Include a complete set of run settings.');
  for(const [key,[minimum,maximum]] of Object.entries(limits))if(typeof s[key]!=='number'||!Number.isFinite(s[key])||s[key]<minimum||s[key]>maximum)throw Error(settingLabels[key]+' must be between '+minimum+' and '+maximum+'.');
- if(legacy)value.settings={max_power_per_s:s.max_power_per_s,tolerance_rpm:s.tolerance_rpm,rpm_warning_percent:defaults.rpm_warning_percent,rpm_warning_delay_s:defaults.rpm_warning_delay_s};
+ if(legacy)value.settings={max_power_per_s:s.max_power_per_s,tolerance_rpm:s.tolerance_rpm,rpm_warning_percent:defaults.rpm_warning_percent,rpm_warning_delay_s:defaults.rpm_warning_delay_s,rpm_zero_threshold:defaults.rpm_zero_threshold};
+ else if(previous)value.settings={max_power_per_s:s.max_power_per_s,tolerance_rpm:s.tolerance_rpm,rpm_warning_percent:s.rpm_warning_percent,rpm_warning_delay_s:s.rpm_warning_delay_s,rpm_zero_threshold:defaults.rpm_zero_threshold};
  return value;
 }
 function preview(){if(!cfg)return;const steps=selected().steps;let total=0,previous=0,points=[[0,0]],maximum=1;for(const s of steps){total+=Number(s.slew_s)||0;points.push([total,Number(s.rpm)||0]);total+=Number(s.dwell_s)||0;points.push([total,Number(s.rpm)||0]);maximum=Math.max(maximum,Number(s.rpm)||0);}const data=points.map(p=>(18+604*p[0]/Math.max(total,1)).toFixed(1)+','+(108-80*p[1]/maximum).toFixed(1)).join(' ');$('curve').setAttribute('points',data);$('chart-top').textContent=Math.round(maximum)+' RPM';$('duration').textContent='Recipe duration: '+total.toFixed(1)+' s. RPM warnings do not pause the timeline.';}
@@ -84,8 +87,9 @@ function live(s){
   const card=document.createElement('div'),label=document.createElement('span'),rpm=document.createElement('strong'),unit=document.createElement('span'),bar=document.createElement('div'),fill=document.createElement('i');
   card.className='fan'+(!f.enabled?' off':warning?' warning':'');
   label.className=unit.className='small muted';label.textContent='FAN #'+i;
-  rpm.textContent=f.enabled&&f.valid?Math.round(f.rpm||0):'--';
-  unit.textContent=f.enabled?'RPM | '+Math.round(duty)+'%':'Disabled';
+  const displayRPM=f.display_rpm==null?(f.valid?(f.rpm||0):0):f.display_rpm;
+  rpm.textContent=Math.round(displayRPM);
+  unit.textContent=f.enabled?'RPM | '+Math.round(duty)+'%':'RPM | Disabled';
   bar.className='bar';fill.style.width=duty+'%';bar.append(fill);card.append(label,rpm,unit,bar);
   if(warning){
    const detail=document.createElement('span');detail.className='rpm-warning';
@@ -93,7 +97,8 @@ function live(s){
    const duration=Number.isFinite(f.out_of_bounds_s)?' | '+Math.max(0,f.out_of_bounds_s).toFixed(1)+' s':'';
    detail.textContent='OFF TARGET: '+error+duration;card.append(detail);
   }
-  if(f.enabled&&f.driver_error){const detail=document.createElement('span');detail.className='driver-error';detail.textContent='IO: '+String(f.driver_error).replace(/_/g,' ');card.append(detail);}
+  if(f.driver_error){const detail=document.createElement('span');detail.className='driver-error';detail.textContent='IO: '+String(f.driver_error).replace(/_/g,' ');card.append(detail);}
+  if(!f.valid&&!warning){const detail=document.createElement('span');detail.className='tach-status';detail.textContent='No recent tach';card.append(detail);}
   $('fans').append(card);
  }
 }

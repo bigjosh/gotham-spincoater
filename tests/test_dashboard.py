@@ -56,9 +56,9 @@ class DashboardToggleTests(unittest.TestCase):
                          and call[5] == DISABLED_CARD]
         self.assertTrue(disabled_text)
         self.assertTrue(all(call[4] == WHITE for call in disabled_text))
-        self.assertNotIn('3000', self.labels())
+        self.assertIn('3000', self.labels())
 
-    def test_enabling_and_disabling_repaints_card_and_stale_numbers(self):
+    def test_enabling_and_disabling_repaints_card_and_preserves_live_rpm(self):
         snapshot = {'fans': [{'enabled': False}]}
         self.dashboard.update(snapshot)
         self.display.calls.clear()
@@ -72,7 +72,7 @@ class DashboardToggleTests(unittest.TestCase):
         self.dashboard.update(snapshot)
         self.assertIn(('rect', 8, 76, 152, 80, DISABLED_CARD), self.display.calls)
         self.assertIn('ENABLE', self.labels())
-        self.assertNotIn('2450', self.labels())
+        self.assertIn('2450', self.labels())
 
     def test_running_and_gpio_lock_replace_actions_without_full_redraw(self):
         snapshot = {'fans': [{'enabled': True}, {'enabled': False},
@@ -155,7 +155,7 @@ class DashboardToggleTests(unittest.TestCase):
         snapshot = {'state': 'DWELL', 'running': True, 'fans': [
             {'enabled': True, 'warning': True, 'valid': False, 'duty': 30}]}
         self.dashboard.update(snapshot)
-        self.assertIn('--', self.labels())
+        self.assertIn('0', self.labels())
         self.assertIn('PWM  30%', self.labels())
         self.assertIn(('rect', 16, 147, 41, 5, RED), self.display.calls)
         self.display.calls.clear()
@@ -184,6 +184,31 @@ class DashboardToggleTests(unittest.TestCase):
         self.assertIn('RUN', self.labels())
         self.assertIn('PWM  30%', self.labels())
         self.assertNotIn('IO ERROR', self.labels())
+
+    def test_display_rpm_stays_visible_when_disabled_idle_or_stopped(self):
+        for state in ('IDLE', 'STOPPED', 'COMPLETE'):
+            with self.subTest(state=state):
+                self.display.calls.clear()
+                self.dashboard = Dashboard(self.display)
+                self.dashboard.update({'state': state, 'running': False, 'fans': [
+                    {'enabled': False, 'valid': True, 'rpm': 1285,
+                     'display_rpm': 1285, 'duty': 0},
+                    {'enabled': True, 'valid': True, 'rpm': 720,
+                     'display_rpm': 720, 'duty': 0}]})
+                self.assertIn('1285', self.labels())
+                self.assertIn('720', self.labels())
+                self.assertNotIn('--', self.labels())
+
+    def test_display_threshold_result_is_authoritative_and_missing_tach_is_numeric(self):
+        self.dashboard.update({'fans': [
+            {'enabled': True, 'valid': True, 'rpm': 59.9, 'display_rpm': 0},
+            {'enabled': False, 'valid': True, 'rpm': 60, 'display_rpm': 60},
+            {'enabled': False, 'valid': False, 'rpm': 2000, 'display_rpm': 0},
+            {'enabled': True, 'valid': False, 'rpm': None}]})
+        rpm_calls = [call for call in self.display.calls if call[0] == 'text'
+                     and call[3] in (110, 194)]
+        self.assertEqual([call[1] for call in rpm_calls], ['0', '60', '0', '0', '0', '0'])
+        self.assertNotIn('--', self.labels())
 
 
 if __name__ == '__main__':

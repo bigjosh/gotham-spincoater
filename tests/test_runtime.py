@@ -69,6 +69,10 @@ class FakeFan:
         self.on_sample = None
         self.on_set_duty = None
         self.on_stop = None
+        self.on_monitor = None
+        self.monitors = 0
+        self.monitoring = False
+        self.monitor_result = True
         self.arm_result = True
         self.fault = None
         self.rpm = 0
@@ -80,10 +84,22 @@ class FakeFan:
 
     def arm(self):
         self.arms += 1
+        self.monitoring = False
         if self.on_arm:
             self.on_arm()
         self.stopped = not self.arm_result
         return self.arm_result
+
+    def monitor(self):
+        if self.monitoring:
+            return True
+        if self.on_monitor:
+            self.on_monitor()
+        self.monitors += 1
+        self.stopped = True
+        self.output = 0
+        self.monitoring = self.monitor_result
+        return self.monitor_result
 
     def sample(self):
         self.samples += 1
@@ -108,6 +124,7 @@ class FakeFan:
             self.on_stop()
         self.stops += 1
         self.stopped = True
+        self.monitoring = False
         self.output = 0
 
     def close(self):
@@ -431,7 +448,8 @@ class RuntimeTests(unittest.TestCase):
         state = controller.snapshot()
         self.assertFalse(state['running'])
         self.assertIn('STOP or clock change', state['message'])
-        self.assertEqual(controller.fans[0].samples, 0)
+        self.assertEqual(controller.fans[0].samples, 1)
+        self.assertEqual(controller.fans[0].monitors, 1)
         self.assertEqual(controller.fans[0].commands, [])
         self.assertEqual(controller.fans[1].arms, 0)
         self.assertEqual(controller.fans[1].commands, [])
@@ -464,6 +482,7 @@ class RuntimeTests(unittest.TestCase):
     def test_power_exceptions_hold_broken_outputs_zero_without_stopping_recipe(self):
         self.config.ENABLED_CHANNELS = (0, 1)
         controller = self.controller()
+        controller.fans[0].rpm, controller.fans[0].valid = 1800, True
         def fail():
             raise OSError('TX failure')
         controller.fans[0].on_set_duty = fail
@@ -476,6 +495,8 @@ class RuntimeTests(unittest.TestCase):
         self.run_for(controller, 220, monitor)
         self.assertTrue(observed[0]['running'])
         self.assertIn('TX failure', observed[0]['fans'][0]['driver_error'])
+        self.assertEqual(observed[0]['fans'][0]['display_rpm'], 0)
+        self.assertFalse(observed[0]['fans'][0]['valid'])
         self.assertEqual(controller.fans[0].samples, 1)
         self.assertEqual(controller.fans[0].commands, [])
         self.assertGreater(len(controller.fans[1].commands), 1)
@@ -681,16 +702,137 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(FakePin.levels[14], 0)
         controller.fans[0].on_close = None
 
-    def test_disabled_fans_are_not_sampled_commanded_or_used_for_driver_errors(self):
+    def test_disabled_fans_are_sampled_and_report_driver_errors_without_power_commands(self):
         controller = self.controller()
         controller.fans[1].fault = 'command_underrun'
         self.one_tick(controller)
         self.assertNotEqual(controller.snapshot()['state'], 'ERROR')
-        self.assertIsNone(controller.snapshot()['fans'][1]['driver_error'])
+        self.assertEqual(controller.snapshot()['fans'][1]['driver_error'], 'command_underrun')
+        self.assertEqual(controller.snapshot()['fans'][1]['display_rpm'], 0)
         for i in (1, 2, 3):
             self.assertEqual(controller.fans[i].arms, 0)
-            self.assertEqual(controller.fans[i].samples, 0)
+            self.assertEqual(controller.fans[i].samples, 1)
             self.assertEqual(controller.fans[i].commands, [])
+
+    def test_idle_monitors_all_six_channels_at_zero_power_without_restarting_tach(self):
+        self.config.AUX_LINKS_DISCONNECTED = True
+        controller = self.controller()
+        for i, fan in controller.fans.items():
+            fan.rpm, fan.valid = 600 + i * 100, True
+        observed = []
+        def inspect():
+            if self.clock.now in (110, 210):
+                observed.append((controller.snapshot(),
+                                 [fan.monitors for fan in controller.fans.values()],
+                                 [fan.stops for fan in controller.fans.values()]))
+        self.run_for(controller, 220, inspect, start=False)
+        for state, monitors, _ in observed:
+            self.assertEqual(state['state'], 'IDLE')
+            self.assertEqual([fan['display_rpm'] for fan in state['fans']],
+                             [600, 700, 800, 900, 1000, 1100])
+            self.assertEqual(monitors, [1] * 6)
+        self.assertEqual(observed[0][2], observed[1][2])
+        self.assertTrue(all(fan.arms == 0 and fan.commands == [] for fan in controller.fans.values()))
+        self.assertTrue(all(fan.output == 0 for fan in controller.fans.values()))
+
+    def test_held_stop_keeps_fresh_rpm_and_never_restarts_power_or_tach(self):
+        controller = self.controller()
+        for fan in controller.fans.values():
+            fan.rpm, fan.valid = 1000, True
+        observed = []
+        def inspect():
+            if self.clock.now == 60:
+                FakePin.levels[14] = 0
+            if self.clock.now == 140:
+                for fan in controller.fans.values():
+                    fan.rpm = 700
+            if self.clock.now in (110, 210):
+                observed.append((controller.snapshot(),
+                                 [fan.monitors for fan in controller.fans.values()],
+                                 [fan.stops for fan in controller.fans.values()]))
+        self.run_for(controller, 220, inspect)
+        self.assertEqual(observed[0][0]['state'], 'STOPPED')
+        self.assertEqual(observed[0][0]['fans'][0]['display_rpm'], 1000)
+        self.assertEqual(observed[1][0]['fans'][0]['display_rpm'], 700)
+        self.assertEqual(observed[0][1:], observed[1][1:])
+        self.assertEqual(controller.fans[0].arms, 1)
+        self.assertTrue(all(fan.stopped and fan.output == 0 for fan in controller.fans.values()))
+
+    def test_monitor_failure_is_local_and_visible_even_on_disabled_channel(self):
+        controller = self.controller()
+        controller.fans[1].monitor_result = False
+        controller.fans[2].rpm, controller.fans[2].valid = 1500, True
+        self.one_tick(controller, start=False)
+        state = controller.snapshot()
+        self.assertEqual(state['state'], 'IDLE')
+        self.assertIn('monitor could not start', state['fans'][1]['driver_error'])
+        self.assertEqual(state['fans'][1]['display_rpm'], 0)
+        self.assertEqual(state['fans'][2]['display_rpm'], 1500)
+        self.assertEqual(controller.fans[1].samples, 1)
+        self.assertTrue(all(fan.arms == 0 and fan.commands == [] for fan in controller.fans.values()))
+
+    def test_clock_change_during_monitor_start_remains_global_error(self):
+        controller = self.controller()
+        controller.fans[0].monitor_result = False
+        controller.fans[0].fault = 'clock_changed'
+        self.one_tick(controller, start=False)
+        self.assertEqual(controller.snapshot()['state'], 'ERROR')
+        self.assertIn('clock changed', controller.snapshot()['message'])
+        self.assertTrue(controller.closing)
+        self.assertEqual(FakePin.levels[14], 0)
+        self.assertTrue(all(fan.output == 0 for fan in controller.fans.values()))
+
+    def test_shutdown_during_monitor_setup_cannot_resume_other_monitors_or_power(self):
+        controller = self.controller()
+        controller.fans[0].on_monitor = controller.request_shutdown
+        self.one_tick(controller, start=False)
+        self.assertEqual(FakePin.levels[14], 0)
+        self.assertTrue(controller.closing)
+        self.assertTrue(all(fan.monitors == 0 for i, fan in controller.fans.items() if i != 0))
+        self.assertTrue(all(fan.arms == 0 and fan.commands == [] for fan in controller.fans.values()))
+
+    def test_threshold_is_loaded_before_start_and_worker_applies_idle_save_before_return(self):
+        self.book.data['settings']['rpm_zero_threshold'] = 100
+        controller = self.controller()
+        controller.engine.update(0, {0: {'rpm': 80, 'valid': True}})
+        controller._snapshot = controller._state()
+        self.assertEqual(controller.snapshot()['fans'][0]['display_rpm'], 0)
+        controller.started = True
+        phases = []
+        def saving():
+            phases.append('save')
+            self.assertEqual(controller.engine.snapshot()['fans'][0]['display_rpm'], 0)
+        def acknowledge():
+            phases.append('apply' if controller._pending_settings is not None else 'pause')
+            controller._service_edit()
+        self.save_hook = saving
+        self.clock.on_sleep = acknowledge
+        data = self.changed_data()
+        data['settings']['rpm_zero_threshold'] = 0
+        try:
+            controller.save_config(data)
+        finally:
+            self.clock.on_sleep = None
+            controller.finished = True
+        self.assertEqual(phases, ['pause', 'save', 'apply'])
+        self.assertEqual(controller.snapshot()['fans'][0]['display_rpm'], 80)
+        self.assertTrue(all(fan.arms == 0 for fan in controller.fans.values()))
+
+    def test_missing_configuration_ack_stops_without_applying_new_threshold(self):
+        controller = self.controller()
+        controller.started = True
+        self.clock.on_sleep = lambda: setattr(controller, '_edit_ready', True)
+        data = self.changed_data()
+        data['settings']['rpm_zero_threshold'] = 500
+        try:
+            with self.assertRaisesRegex(RuntimeError, 'acknowledgement failed'):
+                controller.save_config(data)
+        finally:
+            self.clock.on_sleep = None
+            controller.finished = True
+        self.assertEqual(controller.engine._settings['rpm_zero_threshold'], 60)
+        self.assertTrue(controller.closing)
+        self.assertEqual(FakePin.levels[14], 0)
 
     def test_contested_channels_are_never_constructed_or_enabled(self):
         self.config.ENABLED_CHANNELS = (0, 4, 5)

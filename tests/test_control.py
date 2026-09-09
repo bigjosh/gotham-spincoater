@@ -51,6 +51,76 @@ class EngineTests(unittest.TestCase):
         self.assertNotIn('fault_count', state)
         self.assertNotIn('fault', state['fans'][0])
 
+    def test_idle_disabled_and_stopped_channels_keep_reporting_rpm(self):
+        engine = control.ControlEngine((0,))
+        samples = {i: reading(600 + i * 100, stopped=True) for i in range(6)}
+        engine.update(20, samples)
+        self.assertEqual(engine.state, 'IDLE')
+        self.assertEqual([fan['display_rpm'] for fan in engine.snapshot()['fans']],
+                         [600, 700, 800, 900, 1000, 1100])
+        engine.start(profile(), DEFAULT_SETTINGS, 40)
+        samples[0] = reading(3000)
+        engine.update(60, samples)
+        self.assertTrue(engine.running)
+        self.assertEqual(engine.snapshot()['fans'][5]['display_rpm'], 1100)
+        engine.stop('STOP button')
+        engine.update(80, {i: reading(500 - i * 50, stopped=True) for i in range(6)})
+        self.assertEqual(engine.state, 'STOPPED')
+        self.assertEqual(engine.message, 'STOP button')
+        self.assertEqual([fan['display_rpm'] for fan in engine.snapshot()['fans']],
+                         [500, 450, 400, 350, 300, 250])
+        self.assertEqual(engine.duties, [0] * 6)
+
+    def test_display_threshold_keeps_raw_measurement_and_validity(self):
+        engine = control.ControlEngine((0,))
+        engine.update(20, {0: reading(59.9), 1: reading(60), 2: reading(60.1),
+                           3: reading(), 4: reading(3000, age_ms=1600), 5: reading(0)})
+        fans = engine.snapshot()['fans']
+        self.assertEqual([fan['display_rpm'] for fan in fans], [0, 60, 60.1, 0, 0, 0])
+        self.assertEqual(fans[0]['rpm'], 59.9)
+        self.assertTrue(fans[0]['valid'])
+        self.assertIsNone(fans[3]['rpm'])
+        self.assertFalse(fans[3]['valid'])
+        self.assertFalse(fans[4]['valid'])
+
+    def test_threshold_configuration_applies_before_start_and_survives_selection_change(self):
+        settings = dict(DEFAULT_SETTINGS, rpm_zero_threshold=100)
+        engine = control.ControlEngine((0,), settings=settings)
+        engine.update(20, {0: reading(80), 1: reading(150)})
+        self.assertEqual(engine.snapshot()['fans'][0]['display_rpm'], 0)
+        settings['rpm_zero_threshold'] = 0  # Constructor copied the settings.
+        self.assertEqual(engine.snapshot()['fans'][0]['display_rpm'], 0)
+        engine.configure_settings(settings)
+        self.assertEqual(engine.snapshot()['fans'][0]['display_rpm'], 80)
+        engine.set_enabled((1,))
+        self.assertFalse(engine.snapshot()['fans'][0]['valid'])
+        engine.update(40, {0: reading(80), 1: reading(150)})
+        self.assertEqual(engine.snapshot()['fans'][0]['display_rpm'], 80)
+        self.assertFalse(engine.snapshot()['fans'][0]['enabled'])
+        invalid = dict(settings, rpm_zero_threshold=-1)
+        with self.assertRaises(ValueError):
+            engine.configure_settings(invalid)
+        self.assertEqual(engine.snapshot()['fans'][0]['display_rpm'], 80)
+        engine.start(profile(), settings, 60)
+        with self.assertRaisesRegex(RuntimeError, 'Stop the recipe'):
+            engine.configure_settings(DEFAULT_SETTINGS)
+
+    def test_display_zero_does_not_replace_raw_rpm_in_seeker_or_positive_warning(self):
+        engine = self.make(recipe=profile(rpm=100), rpm_zero_threshold=200,
+                           tolerance_rpm=1, rpm_warning_delay_s=0)
+        engine.update(20, {0: reading(90)})
+        fan = engine.snapshot()['fans'][0]
+        self.assertEqual(fan['display_rpm'], 0)
+        self.assertEqual(fan['rpm'], 90)
+        self.assertTrue(fan['valid'])
+        self.assertAlmostEqual(fan['duty'], .002)  # 10 RPM error, not 100 RPM.
+        self.assertTrue(fan['warning'])
+        self.assertEqual(fan['error_percent'], 10)
+        before = fan['duty']
+        engine.update(40, {0: reading()})
+        self.assertEqual(engine.duties[0], before)
+        self.assertTrue(engine.snapshot()['fans'][0]['warning'])
+
     def test_empty_selection_is_idle_but_cannot_start(self):
         engine = control.ControlEngine(())
         self.assertEqual(engine.update(20, {}), [0] * 6)
@@ -328,14 +398,35 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(engine.participating, (0, 1))
         self.assertEqual(engine.snapshot()['warning_count'], 0)
 
-    def test_zero_target_uses_absolute_tolerance_without_division(self):
-        engine = self.make(recipe=profile(rpm=0), rpm_warning_delay_s=0)
-        engine.update(20, {0: reading(51)})
+    def test_zero_target_uses_display_threshold_instead_of_seeker_tolerance(self):
+        engine = self.make(recipe=profile(rpm=0), rpm_warning_delay_s=0, tolerance_rpm=100)
+        engine.update(20, {0: reading(60)})
         self.assertTrue(engine.snapshot()['fans'][0]['warning'])
         self.assertIsNone(engine.snapshot()['fans'][0]['error_percent'])
-        engine.update(40, {0: reading(50)})
+        engine.update(40, {0: reading(59.9)})
         self.assertFalse(engine.snapshot()['fans'][0]['warning'])
         self.assertTrue(engine.snapshot()['fans'][0]['in_bounds'])
+
+    def test_zero_threshold_only_accepts_measured_exact_zero_at_zero_target(self):
+        engine = self.make(recipe=profile(rpm=0), rpm_warning_delay_s=0, rpm_zero_threshold=0)
+        engine.update(20, {0: reading(.1)})
+        self.assertEqual(engine.snapshot()['fans'][0]['display_rpm'], .1)
+        self.assertTrue(engine.snapshot()['fans'][0]['warning'])
+        engine.update(40, {0: reading(0)})
+        self.assertFalse(engine.snapshot()['fans'][0]['warning'])
+
+    def test_unknown_display_zero_does_not_hide_recent_tach_activity_or_driver_error(self):
+        engine = self.make(recipe=profile(rpm=0), rpm_warning_delay_s=0)
+        engine.update(0, {0: reading(pulses=0)})
+        engine.update(1000, {0: reading(pulses=1)})
+        engine.update(2000, {0: reading(pulses=1)})
+        self.assertEqual(engine.snapshot()['fans'][0]['display_rpm'], 0)
+        self.assertTrue(engine.snapshot()['fans'][0]['warning'])
+        engine.update(2500, {0: reading(pulses=1)})
+        self.assertFalse(engine.snapshot()['fans'][0]['warning'])
+        engine.update(10000, {0: reading(driver_error='sampling unavailable')})
+        self.assertEqual(engine.snapshot()['fans'][0]['display_rpm'], 0)
+        self.assertTrue(engine.snapshot()['fans'][0]['warning'])
 
     def test_zero_quiet_clears_warning_without_claiming_measured_rpm(self):
         engine = self.make(recipe=profile(rpm=0), rpm_warning_delay_s=.2)

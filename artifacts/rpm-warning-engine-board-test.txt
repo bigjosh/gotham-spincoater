@@ -1,0 +1,7 @@
+Project Pico 8792b44d9c11021d on COM7
+TIMED_WARNING_OK fan0 red, still driven; five peers in bounds
+IMMEDIATE_RECOVERY_OK first in-bounds reading clears red without START
+MISSING_TACH_CONTINUES_OK last power held for nine seconds
+SCHEDULE_OK completed at20s despite missing RPM; all duties zero
+GLOBAL_STOP_OK every requested output zero
+RPM_WARNING_BOARD_OK scripted readings only; no motor commands

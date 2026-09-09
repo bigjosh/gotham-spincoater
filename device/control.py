@@ -10,7 +10,7 @@ except ImportError:
     def ticks_diff(new, old):
         return (new - old + (1 << 29)) % (1 << 30) - (1 << 29)
 
-from recipes import validate_profile, validate_settings
+from recipes import DEFAULT_SETTINGS, validate_profile, validate_settings
 
 
 class ControlEngine:
@@ -21,18 +21,19 @@ class ControlEngine:
     STARTUP_DUTY_LIMIT = 30.0
     QUIET_S = 1.5
 
-    def __init__(self, enabled=(0,)):
+    def __init__(self, enabled=(0,), settings=None):
         if (len(set(enabled)) != len(enabled)
                 or any(type(channel) is not int or not 0 <= channel < 6
                        for channel in enabled)):
             raise ValueError("enabled channels must be unique integers from 0 to 5")
+        chosen_settings = validate_settings(DEFAULT_SETTINGS if settings is None else settings)
         self.enabled = tuple(enabled)
         self.duties = [0.0] * 6
         self.state = "IDLE"
         self.target_rpm = 0.0
         self.message = "Ready" if self.enabled else "Enable at least one fan before START"
         self._profile = None
-        self._settings = None
+        self._settings = chosen_settings
         self._index = 0
         self._now_ms = 0
         self._last_ms = None
@@ -40,7 +41,6 @@ class ControlEngine:
         self._phase_elapsed_ms = 0
         self._from_rpm = 0.0
         self._seen_tach = [False] * 6
-        self._zero_since = [None] * 6
         self._last_pulse_ms = [None] * 6
         self._pulse_counts = [None] * 6
         self._readings = [{} for _ in range(6)]
@@ -70,7 +70,6 @@ class ControlEngine:
         self._last_ms = now_ms
         self._elapsed_ms = 0
         self._seen_tach = [False] * 6
-        self._zero_since = [now_ms] * 6
         self._last_pulse_ms = [now_ms] * 6
         self._pulse_counts = [None] * 6
         self._readings = [{} for _ in range(6)]
@@ -88,7 +87,14 @@ class ControlEngine:
             raise RuntimeError("Stop the recipe before changing fans")
         # Validate before replacing any current state. Disabled channels lose
         # stale measurements, duty and settling history at the same boundary.
-        self.__init__(enabled)
+        self.__init__(enabled, self._settings)
+        return self.snapshot()
+
+    def configure_settings(self, settings):
+        """Apply display/control settings on the worker while no recipe runs."""
+        if self.running:
+            raise RuntimeError("Stop the recipe before changing settings")
+        self._settings = validate_settings(settings)
         return self.snapshot()
 
     def stop(self, reason="Stopped"):
@@ -109,14 +115,14 @@ class ControlEngine:
         self._error_percent = [None] * 6
 
     def _zero_in_bounds(self, channel, reading):
-        if self._zero_since[channel] is None:
-            self._zero_since[channel] = self._now_ms
+        if reading.get("driver_error"):
+            return False
         if reading.get("valid", False):
-            return reading["rpm"] <= self._settings["tolerance_rpm"]
+            rpm = reading["rpm"]
+            return rpm == 0 or rpm < self._settings["rpm_zero_threshold"]
         quiet_since = self._last_pulse_ms[channel]
         quiet = (quiet_since is not None
-                 and ticks_diff(self._now_ms, quiet_since) >= self.QUIET_S * 1000
-                 and ticks_diff(self._now_ms, self._zero_since[channel]) >= self.QUIET_S * 1000)
+                 and ticks_diff(self._now_ms, quiet_since) >= self.QUIET_S * 1000)
         self._standstill_assumed = self._standstill_assumed or quiet
         return quiet
 
@@ -131,7 +137,6 @@ class ControlEngine:
             if target == 0:
                 in_bounds = self._zero_in_bounds(channel, reading)
             else:
-                self._zero_since[channel] = None
                 if reading.get("valid", False):
                     error_percent = abs(reading["rpm"] - target) * 100.0 / target
                     in_bounds = error_percent <= self._settings["rpm_warning_percent"]
@@ -201,8 +206,10 @@ class ControlEngine:
 
     def _capture(self, readings):
         emergency = False
-        for channel in self.participating:
+        for channel in range(6):
             reading = readings.get(channel, {})
+            if self._last_pulse_ms[channel] is None:
+                self._last_pulse_ms[channel] = self._now_ms
             rpm = reading.get("rpm")
             valid = (reading.get("valid") is True
                      and not reading.get("driver_error") and not reading.get("fault")
@@ -234,7 +241,8 @@ class ControlEngine:
                 self._last_pulse_ms[channel] = self._now_ms
             # Runtime owns driver errors. A PIO driver error can also park its
             # output; that stopped flag does not represent the shared STOP.
-            if not reading.get("fault") and not reading.get("driver_error"):
+            if (self.running and channel in self.enabled
+                    and not reading.get("fault") and not reading.get("driver_error")):
                 emergency = emergency or bool(reading.get("stopped", False))
         return emergency
 
@@ -252,7 +260,6 @@ class ControlEngine:
                 self.duties[channel] = 0.0
                 continue
 
-            self._zero_since[channel] = None
             if valid:
                 self._seen_tach[channel] = True
                 error = target - reading["rpm"]
@@ -316,9 +323,11 @@ class ControlEngine:
             reading = self._readings[channel]
             valid = reading.get("valid", False)
             rpm = reading.get("rpm") if valid else None
+            display_rpm = (rpm if valid and rpm >= self._settings["rpm_zero_threshold"] else 0)
             participating = channel in self.participating
             target = self.target_rpm if participating else 0
             fans.append({"enabled": channel in self.enabled, "rpm": rpm,
+                         "display_rpm": display_rpm,
                          "valid": valid, "duty": self.duties[channel],
                          "participating": participating,
                          "warning": self._warnings[channel],

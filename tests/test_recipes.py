@@ -69,7 +69,7 @@ class RecipeTests(unittest.TestCase):
     def test_settings_bounds_and_version(self):
         for key in recipes.DEFAULT_SETTINGS:
             data = defaults()
-            data["settings"][key] = -1 if key == 'rpm_warning_delay_s' else 0
+            data["settings"][key] = -1 if key in ('rpm_warning_delay_s', 'rpm_zero_threshold') else 0
             with self.assertRaises(ValueError):
                 recipes.validate_document(data)
         data = defaults()
@@ -110,7 +110,8 @@ class RecipeTests(unittest.TestCase):
             self.assertEqual(migrated['profiles'], data['profiles'])
             self.assertEqual(migrated['settings'], {
                 'max_power_per_s': 8, 'tolerance_rpm': 35,
-                'rpm_warning_percent': 5, 'rpm_warning_delay_s': 2})
+                'rpm_warning_percent': 5, 'rpm_warning_delay_s': 2,
+                'rpm_zero_threshold': 60})
             book.save(migrated)
             self.assertEqual(json.loads(path.read_text())['settings'], migrated['settings'])
             self.assertEqual(Path(str(path) + '.bak').read_bytes(), original)
@@ -128,6 +129,26 @@ class RecipeTests(unittest.TestCase):
                             'settle_s': float('nan'), 'reach_timeout_s': 15}
         with self.assertRaises(ValueError):
             recipes.validate_document(data)
+
+    def test_zero_threshold_bounds_and_warning_schema_migration(self):
+        for value in (0, 60, 1000):
+            data = defaults()
+            data['settings']['rpm_zero_threshold'] = value
+            self.assertEqual(recipes.validate_document(data)['settings']['rpm_zero_threshold'], value)
+        for value in (-1, 1001, True, '60', float('nan'), float('inf')):
+            data = defaults()
+            data['settings']['rpm_zero_threshold'] = value
+            with self.assertRaises(ValueError):
+                recipes.validate_document(data)
+        data = defaults()
+        data['settings'].update(rpm_warning_percent=8, rpm_warning_delay_s=4)
+        del data['settings']['rpm_zero_threshold']
+        old = json.loads(json.dumps(data))
+        migrated = recipes.validate_document(data)
+        self.assertEqual(data, old)
+        self.assertEqual(migrated['settings']['rpm_zero_threshold'], 60)
+        self.assertEqual(migrated['settings']['rpm_warning_percent'], 8)
+        self.assertEqual(migrated['settings']['rpm_warning_delay_s'], 4)
 
     def test_load_does_not_write_missing_files(self):
         with tempfile.TemporaryDirectory() as folder:

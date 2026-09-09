@@ -15,8 +15,10 @@ DEFAULT_SETTINGS = {
     "tolerance_rpm": 50,
     "rpm_warning_percent": 5,
     "rpm_warning_delay_s": 2,
+    "rpm_zero_threshold": 60,
 }
 LEGACY_SETTINGS = ("max_power_per_s", "tolerance_rpm", "settle_s", "reach_timeout_s")
+WARNING_SETTINGS = ("max_power_per_s", "tolerance_rpm", "rpm_warning_percent", "rpm_warning_delay_s")
 DEFAULT_DATA = {
     "version": 1,
     "selected": "Default",
@@ -61,13 +63,18 @@ def validate_settings(settings):
             "tolerance_rpm": settings["tolerance_rpm"],
             "rpm_warning_percent": DEFAULT_SETTINGS["rpm_warning_percent"],
             "rpm_warning_delay_s": DEFAULT_SETTINGS["rpm_warning_delay_s"],
+            "rpm_zero_threshold": DEFAULT_SETTINGS["rpm_zero_threshold"],
         }
+    elif isinstance(settings, dict) and set(settings) == set(WARNING_SETTINGS):
+        settings = dict(settings)
+        settings["rpm_zero_threshold"] = DEFAULT_SETTINGS["rpm_zero_threshold"]
     _keys(settings, DEFAULT_SETTINGS, "settings")
     ranges = {
         "max_power_per_s": (0.1, 100),
         "tolerance_rpm": (1, 500),
         "rpm_warning_percent": (0.1, 100),
         "rpm_warning_delay_s": (0, 120),
+        "rpm_zero_threshold": (0, 1000),
     }
     result = {}
     for key, bounds in ranges.items():

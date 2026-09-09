@@ -6,7 +6,6 @@ through the warning and recovery. No saved selections/recipes are accessed.
 Run via guarded pico.ps1 Exec, then reboot into the normal app.
 """
 from time import sleep_ms, ticks_ms, ticks_diff
-from machine import Pin
 from recipes import RecipeBook, validate_profile
 from runtime import Controller
 from pio_fan import PioFan
@@ -72,7 +71,7 @@ try:
         assert state['running'] and state['target_rpm'] == 0, state
         assert all(fan['participating'] and fan['duty'] == 0 for fan in state['fans'])
         assert all(not controller.fans[i]._stopped for i in range(6))
-        assert all(Pin(config.FUTURE_CHANNELS[i][0]).value() == 0 for i in range(6))
+        assert all(controller.fans[i].pwm_is_low() for i in range(6))
         assert ticks_diff(ticks_ms(), controller.heartbeat) < 500
         if state['fans'][0]['warning']:
             seen_warning = True

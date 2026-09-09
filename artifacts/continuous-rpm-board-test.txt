@@ -1,0 +1,4 @@
+Project Pico 8792b44d9c11021d on COM7
+IDLE_DISABLED_RPM_OK six passive samplers; threshold boundary 59/60
+HELD_STOP_RPM_OK fresh scripted readings; all raw PWM pads actively LOW
+CONTINUOUS_RPM_BOARD_OK no positive power or saved-file changes

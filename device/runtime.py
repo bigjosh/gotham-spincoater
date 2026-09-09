@@ -42,6 +42,7 @@ class Controller:
         self.editing = False
         self._edit_ready = False
         self._pending_enabled = None
+        self._pending_settings = None
         self.closing = False
         self.finished = False
         self.started = False
@@ -77,7 +78,7 @@ class Controller:
                     window=config.PERIOD_AVERAGE, pulses_per_rev=config.PULSES_PER_REV)
                 if i not in self.enabled:
                     self.fans[i].stop()
-            self.engine = ControlEngine(enabled=self.enabled)
+            self.engine = ControlEngine(enabled=self.enabled, settings=self._settings)
             self._snapshot = self._state()
         except BaseException:
             for fan in self.fans.values():
@@ -116,13 +117,14 @@ class Controller:
             fan['available'] = i in self.available
             fan['unavailable_reason'] = ('' if fan['available'] else
                 'Disconnect kit RGB/buzzer/D1/D2 links before enabling fans 4/5')
-            fan['driver_error'] = self._driver_errors[i] if i in self.enabled else None
+            fan['driver_error'] = self._driver_errors[i] if i in self.available else None
             if fan['driver_error'] is not None:
                 # A command failure can occur after this tick's engine update.
                 # Always publish the actual parked output, not its old request.
                 fan['duty'] = 0.0
                 fan['rpm'] = None
                 fan['valid'] = False
+                fan['display_rpm'] = 0
         state['fan_settings_source'] = self.fan_settings.source
         state['fan_settings_error'] = self.fan_settings.load_error
         return state
@@ -145,6 +147,31 @@ class Controller:
         if self._driver_errors[channel] is None:
             self._driver_errors[channel] = str(reason)
 
+    def _monitor_idle_channels(self):
+        """Worker-only tach monitoring with the PWM pad forced LOW."""
+        if not self.engine.running and not self._outputs_parked:
+            if not self._stop_outputs():
+                self.request_shutdown('Could not stop outputs for tach monitoring')
+                raise RuntimeError('Could not stop outputs for tach monitoring')
+        for i in self.available:
+            if self.closing:
+                return
+            if self._driver_errors[i] is not None:
+                continue
+            if self.engine.running and i in self.enabled:
+                continue
+            try:
+                if not self.fans[i].monitor():
+                    reason = self.fans[i].sample().get('fault') or 'tach monitor could not start'
+                    if reason == 'clock_changed':
+                        self.request_shutdown('Controller clock changed')
+                        raise RuntimeError('Controller clock changed')
+                    self._isolate_fan(i, reason)
+            except Exception as error:
+                if self.closing:
+                    raise
+                self._isolate_fan(i, 'tach monitor failed: ' + str(error))
+
     def _service_edit(self):
         """Worker-only pause/commit acknowledgement, with every PWM held LOW."""
         # A START edge can still be inside its debounce window when flash IO
@@ -158,21 +185,27 @@ class Controller:
                 self._edit_ready = True
         with self.lock:
             pending = self._pending_enabled
+            pending_settings = self._pending_settings
         if pending is not None:
             self.engine.set_enabled(pending)
             self.enabled = pending
+        if pending_settings is not None:
+            self.engine.configure_settings(pending_settings)
+        if pending is not None or pending_settings is not None:
             if not self.stop_pin.value():
                 self.engine.stop('STOP button')
             state = self._state()
             with self.lock:
                 self._snapshot = state
                 self._pending_enabled = None
+                self._pending_settings = None
 
     def _wait_edit(self, applied=False):
         began = ticks_ms()
         while True:
             with self.lock:
-                ready = (self._pending_enabled is None if applied else self._edit_ready)
+                ready = ((self._pending_enabled is None and self._pending_settings is None)
+                         if applied else self._edit_ready)
             if ready and not self.closing:
                 return
             if (self.closing or self.finished or
@@ -327,8 +360,9 @@ class Controller:
                             self._stop_outputs()
 
                 readings = {}
-                if not self._outputs_parked:
-                    for i in self.enabled:
+                if not self.closing:
+                    self._monitor_idle_channels()
+                    for i in self.available:
                         if self._driver_errors[i] is not None:
                             readings[i] = {'driver_error': self._driver_errors[i], 'valid': False}
                             continue
@@ -352,13 +386,14 @@ class Controller:
                             readings[i] = reading
                 if self.closing or not self.stop_pin.value():
                     self.engine.stop('Controller shutting down' if self.closing else 'STOP button')
-                    self._stop_outputs()
-                    readings = {}
+                    if not self._outputs_parked:
+                        self._stop_outputs()
                 duties = self.engine.update(now, readings)
                 if self.closing:
                     self.engine.stop('Controller shutting down')
-                if self.engine.state == 'STOPPED':
-                    self._stop_outputs()
+                if not self.engine.running:
+                    if not self._outputs_parked:
+                        self._stop_outputs()
                 elif not self._outputs_parked:
                     for i in self.enabled:
                         if self.closing or not self.stop_pin.value():
@@ -417,6 +452,11 @@ class Controller:
             profile, settings = self.book.selectedprofile(), self.book.settings()
             with self.lock:
                 self._profile, self._settings = profile, settings
+                self._pending_settings = settings
+            if self.started:
+                self._wait_edit(applied=True)
+            else:
+                self._service_edit()
             return self.book.data
         finally:
             self._end_edit()

@@ -5,7 +5,6 @@ zero RPM steps; every PWM remains LOW. Saved selections/recipes are not read
 or written. Run via pico.ps1 Exec with the normal app stopped, then reboot.
 """
 from time import sleep_ms, ticks_ms, ticks_diff
-from machine import Pin
 from recipes import RecipeBook, validate_profile
 from runtime import Controller
 from pio_fan import PioFan
@@ -72,7 +71,7 @@ try:
         assert all(fan['enabled'] and fan['duty'] == 0 for fan in state['fans'])
         assert controller.fans[0]._stopped
         assert all(not controller.fans[i]._stopped for i in range(1, 6))
-        assert all(Pin(config.FUTURE_CHANNELS[i][0]).value() == 0 for i in range(6))
+        assert all(controller.fans[i].pwm_is_low() for i in range(6))
         assert not controller.closing and not controller.finished, controller.error
         assert ticks_diff(ticks_ms(), controller.heartbeat) < 500
         observed += 1
