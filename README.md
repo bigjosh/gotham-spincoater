@@ -6,13 +6,13 @@
 
 MicroPython controller for **Raspberry Pi Pico 2 W**, six **ARCTIC P12 Pro** fans, and the **52Pi/GeeekPi Pico Breadboard Kit Plus (EP-0172)**. Each enabled fan independently adjusts PWM power to follow one shared RPM target. A TFT dashboard displays all six channels; a local Wi-Fi page edits recipes.
 
-**Fans #0–#3 are enabled.** These four pairs use GPIOs free of kit peripherals; fans #4/#5 remain disabled until their occupied GPIOs are physically isolated. Connect all four enabled fans before pressing START: missing tach on any enabled channel faults the whole recipe. Physical spin testing so far covers fan #0; enabling the other channels does not establish that they are wired or tested.
+**Fans #0–#3 are available and selected by default.** Use each tile's touch button to choose which fans participate. Fans #4/#5 remain locked until their occupied GPIOs are physically isolated. Connect every selected fan before pressing START: missing tach on a selected channel faults the whole recipe. Physical spin testing so far covers fan #0; enabling the other channels does not establish that they are wired or tested.
 
 **Building all six channels? [Board modification guide: free the four auxiliary GPIOs](BOARD_MODIFICATIONS.md)** — component locations, connection tracing, desoldering, continuity checks, wiring, and firmware setup.
 
 ## Run a recipe
 
-1. Connect and power the hardware below. Boot starts at **0% power**; interrupted recipes never resume automatically.
+1. Connect and power the hardware below. Boot starts at **0% power**; interrupted recipes never resume automatically. Tap each fan's **ENABLE/DISABLE** button while stopped to select the connected fans.
 2. Join the open Wi-Fi network **Gotham Spinner**. Open its captive-portal prompt or visit **[http://192.168.4.1/](http://192.168.4.1/)**. This local access point does not provide Internet access.
 3. Select or edit a recipe, then choose **Save to coater** while idle. The page can create, copy, rename, delete, import, and export recipes.
 4. Press **left START (BTN1 / GP15)** to run the saved selection.
@@ -20,9 +20,19 @@ MicroPython controller for **Raspberry Pi Pico 2 W**, six **ARCTIC P12 Pro** fan
 
 The joystick belongs to the earlier manual bench UI and does not change power in this application. Motor start is available only through the physical button.
 
-The TFT and browser show the run state, target, step, phase countdown, elapsed time, and each fan's RPM and requested power. Disabled channels are dimmed. **`--` means no valid recent tach measurement**, rather than a measured zero shaft speed. The phase countdown shows ramp time, remaining reach timeout, or unconsumed dwell time according to the state.
+The TFT and browser show the run state, target, step, phase countdown, elapsed time, and each fan's RPM and requested power. Disabled channels have a **red background**, zero requested power, and no participation in control, settling, dwell, or tach-loss checks. **`--` means no valid recent tach measurement**, rather than a measured zero shaft speed. The phase countdown shows ramp time, remaining reach timeout, or unconsumed dwell time according to the state.
 
-![TFT dashboard layout, illustrated with four enabled channels](artifacts/dashboard-preview.png)
+![TFT dashboard with per-fan buttons, red disabled cards, and locked GPIO channels](artifacts/dashboard-preview.png)
+
+### Choose participating fans
+
+Tap **DISABLE** on a connected fan's tile to exclude it, or **ENABLE** to include it. The button is in the upper-right corner of each tile. A held touch or drag does not repeatedly toggle a channel. Selection changes are allowed while idle, stopped, complete, or faulted; buttons show **RUN** during a recipe and changes are rejected until it stops. Enabling a fan never starts its motor: a fresh physical START press is still required.
+
+Selections are saved automatically in **`fans.json`**, independently of recipes, and restored after reboot. Importing a recipe or deploying Python files does not overwrite them. All fans may be disabled; START then asks you to enable at least one. Fans marked **LOCKED** cannot be enabled through touch until their kit connections are physically isolated and `AUX_LINKS_DISCONNECTED` is set in firmware configuration.
+
+The initial selection comes from `config.ENABLED_CHANNELS` only when neither `fans.json` nor its backup exists. A damaged primary recovers from a valid backup; if neither existing file is valid, all fans stay disabled until selected again. The saved format is `{"version": 1, "enabled": [0, 1]}`. Disabled available PWM outputs are held LOW. The browser reflects selections; the touch buttons on the coater change them.
+
+Touch uses the kit's GT911 controller on GP8/GP9, with GP10 reset and GP11 interrupt/address selection. Its coordinates are rotated to match the TFT. Touch polling and settings writes run on core 0; core 1 acknowledges an idle pause before a save and applies the selection with outputs LOW. Physical STOP remains handled by PIO. A touch read failure suppresses input until a confirmed release and does not disable the physical buttons.
 
 ## Recipes and control
 
@@ -110,7 +120,7 @@ flowchart LR
     CONTROL -->|Published snapshot| UI[Core 0: TFT and Wi-Fi]
 ```
 
-- **PIO:** one state machine and one DMA channel per enabled fan. The 32-instruction program occupies each used PIO block. STOP is checked each 100-microsecond cycle and latches LOW. An empty command FIFO also latches LOW and raises a fault. These checks do not need Python servicing.
+- **PIO:** one state machine is reserved per hardware-available fan, with a DMA channel while its driver is active. Disabled fan outputs are parked LOW and their DMA is stopped. The 32-instruction program occupies each used PIO block. STOP is checked each 100-microsecond cycle and latches LOW. An empty command FIFO also latches LOW and raises a fault. These checks do not need Python servicing.
 - **Core 1:** polls period FIFOs and runs control at 50 Hz. It averages eight periods, assumes two pulses per revolution, and publishes snapshots about every 100 ms. There is no per-sample or per-period Python tach IRQ.
 - **Core 0:** handles display, Wi-Fi, HTTP/DNS, and idle persistence. The application checks the worker heartbeat and stops outputs if control stalls. Physical STOP remains available in PIO while Python is busy.
 
@@ -126,16 +136,16 @@ See [the complete header map](PINOUT.md), with the Pico's USB connector at the t
 
 | Fan | PWM | Tach | Kit changes |
 | --- | --- | --- | --- |
-| 0 | GP18 (pin 24) | GP19 (pin 25) | None; enabled |
-| 1 | GP20 (pin 26) | GP21 (pin 27) | None; enabled |
-| 2 | GP22 (pin 29) | GP28 (pin 34) | None; enabled; tach stays at 3.3 V |
-| 3 | GP0 (pin 1) | GP1 (pin 2) | None; enabled |
+| 0 | GP18 (pin 24) | GP19 (pin 25) | None; available, selected by default |
+| 1 | GP20 (pin 26) | GP21 (pin 27) | None; available, selected by default |
+| 2 | GP22 (pin 29) | GP28 (pin 34) | None; available, selected by default; tach stays at 3.3 V |
+| 3 | GP0 (pin 1) | GP1 (pin 2) | None; available, selected by default |
 | 4 | GP12 (pin 16) | GP16 (pin 21) | Disconnect RGB and D1 links |
 | 5 | GP13 (pin 17) | GP17 (pin 22) | Disconnect beeper and D2 links |
 
 Preserve GP2–11 for display/touch, GP14/15 for buttons, and GP26/27 for the kit joystick. GP4 is physically connected to TFT MISO even though the display driver does not read it.
 
-`device/config.py` selects **`ENABLED_CHANNELS = (0, 1, 2, 3)`** with **`AUX_LINKS_DISCONNECTED = False`**. The unmodified kit provides four independent pairs, not five. Both channels #4/#5 require physical link disconnection before setting the flag to `True`; that modification has not been made. Every enabled fan follows the shared RPM target with its own PWM correction. For a one-fan bench setup, select `(0,)` and deploy that configuration before starting a recipe.
+`device/config.py` defaults to **`ENABLED_CHANNELS = (0, 1, 2, 3)`** with **`AUX_LINKS_DISCONNECTED = False`**. Saved touch selections take precedence over that initial default. The unmodified kit provides four independent pairs. Both channels #4/#5 require physical link disconnection before setting the flag to `True`; that modification has not been made. Every selected fan follows the shared RPM target with its own PWM correction. For a one-fan bench setup, leave #0 enabled and tap DISABLE on #1–#3 before starting a recipe.
 
 ### Preparing the kit for fans #4 and #5
 
@@ -155,6 +165,8 @@ The guide includes the manufacturer's component-location photograph and a power-
 | [combined_program.py](device/combined_program.py) | PWM/tach/STOP instructions and command encoding |
 | [periods.py](device/periods.py) | Mean of complete tach periods |
 | [dashboard.py](device/dashboard.py), [display.py](device/display.py) | Six-fan TFT and ST7796S drawing |
+| [touch.py](device/touch.py), [touch_controls.py](device/touch_controls.py) | GT911 touch decoding and per-fan button routing |
+| [fan_settings.py](device/fan_settings.py) | Independent persistent fan selection and recovery |
 | [portal.py](device/portal.py), [webpage.py](device/webpage.py) | Captive DNS, bounded HTTP, browser editor |
 | [config.py](device/config.py) | Pins, enabled channels, display, AP |
 | [THIRD_PARTY_NOTICES.md](device/THIRD_PARTY_NOTICES.md) | Attributions and licenses |
@@ -185,7 +197,7 @@ The Windows helper identifies this project's USB serial **8792b44d9c11021d** bef
 .\tools\pico.ps1 -Action Reboot
 ```
 
-`Info`, `Exec`, `Deploy`, and `Launch` interrupt the app and stop its outputs. `Monitor` observes without stopping it. Deploy backs up overwritten Python files, stages uploads, checks SHA-256 readback, and activates `main.py` last. Saved on-board `recipes.json` is separate from deployment; import [the example JSON](examples/recipes.json) through the browser. Boot runs `main.py` automatically.
+`Info`, `Exec`, `Deploy`, and `Launch` interrupt the app and stop its outputs. `Monitor` observes without stopping it. Deploy backs up overwritten Python files, stages uploads, checks SHA-256 readback, and activates `main.py` last. Saved on-board `recipes.json` and `fans.json` are separate from deployment; import [the example recipe JSON](examples/recipes.json) through the browser. Boot runs `main.py` automatically.
 
 `Reboot` restarts only the identified project Pico; use `Monitor` after USB reconnects to inspect automatic startup. `Deploy -Only control.py,runtime.py` updates selected files. Reboot after extended REPL development sessions to release old module references and heap fragmentation.
 
@@ -196,6 +208,8 @@ python -m unittest discover -s tests -v
 ```
 
 Tests cover controller transitions/limits, persistence recovery, START/edit races, HTTP/DNS, PIO instruction timing, resource ownership, and legacy regressions. Actual board/fan evidence belongs in [artifacts/validation.md](artifacts/validation.md); generated tach tests are not physical fan measurements.
+
+`tools/test_fan_settings_board.py` checks saved selections, all-off behavior, GPIO locks, the worker heartbeat, and LOW PWM outputs using a separate temporary settings file. It never starts a recipe and preserves the user's `fans.json` and `recipes.json`. Run it through `pico.ps1 -Action Exec -CodeFile tools/test_fan_settings_board.py` after deploying the modules, then reboot into the normal app. Touch hit alignment still needs a physical tap check on the installed display.
 
 `tools/test_combined_board.py` drives **spare GP0/GP1/GP20** to test the current driver, continuous duty changes, STOP, command starvation, and FIFO recovery. Run only with these pins unconnected and the normal app's PIO resources released. The older `test_sync_board.py` uses GP0/GP1 and PIO1 SM4, requiring wireless to be inactive. `selftest.py` uses GP0/GP1 and SM10/11 for the original GPIO-IRQ test. Never run pin-driving tests after attaching additional fans or devices to those pins.
 

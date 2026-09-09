@@ -40,13 +40,14 @@ class PreviewDisplay:
 if __name__ == '__main__':
     display = PreviewDisplay()
     Dashboard(display).update({
-        'state': 'DWELL', 'running': True, 'target_rpm': 3000,
-        'recipe_name': 'Standard coating', 'elapsed_s': 22.4,
-        'step': 2, 'step_count': 3, 'phase_remaining_s': 22.6,
-        'message': 'Holding 3000 RPM', 'ssid': 'Gotham Spinner',
+        'state': 'IDLE', 'running': False, 'target_rpm': 0,
+        'recipe_name': 'Standard coating', 'elapsed_s': 0,
+        'step': 0, 'step_count': 3, 'phase_remaining_s': None,
+        'message': 'Tap ENABLE / DISABLE to choose participating fans', 'ssid': 'Gotham Spinner',
         'ip': '192.168.4.1', 'loop_lag_ms': 4,
-        'fans': [{'enabled': i < 4, 'rpm': 2996 + i, 'valid': True,
-                  'duty': 79 + i, 'error': 4 - i, 'fault': None} for i in range(6)],
+        'fans': [{'enabled': i in (0, 1, 3), 'available': i < 4, 'rpm': 0,
+                  'valid': False, 'duty': 0, 'error': 0, 'fault': None}
+                 for i in range(6)],
     })
     path = ROOT / 'artifacts' / 'dashboard-preview.png'
     path.parent.mkdir(exist_ok=True)

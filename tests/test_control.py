@@ -53,6 +53,43 @@ class EngineTests(unittest.TestCase):
         self.assertEqual([fan["enabled"] for fan in engine.snapshot()["fans"]],
                          [True, False, False, False, False, True])
 
+    def test_empty_selection_is_idle_but_cannot_start(self):
+        engine = control.ControlEngine(())
+        self.assertEqual(engine.update(20, {}), [0] * 6)
+        with self.assertRaisesRegex(ValueError, 'Enable at least one fan'):
+            engine.start(profile(), DEFAULT_SETTINGS, 0)
+        self.assertFalse(engine.running)
+
+    def test_run_participants_cannot_change_until_stopped(self):
+        engine = self.make(enabled=(0, 2))
+        with self.assertRaisesRegex(RuntimeError, 'Stop the recipe'):
+            engine.set_enabled((0,))
+        self.assertEqual(engine.enabled, (0, 2))
+        engine.stop()
+        engine.set_enabled((0,))
+        self.assertEqual(engine.enabled, (0,))
+        self.assertEqual(engine.duties, [0] * 6)
+        self.assertFalse(engine.snapshot()['fans'][2]['valid'])
+
+    def test_disabled_missing_tach_and_latches_do_not_delay_or_fault_run(self):
+        engine = self.make(enabled=(0,), recipe=profile(dwell=0))
+        self.initial_zero(engine)
+        ignored = reading(stopped=True, fault='command_underrun', overflow=True)
+        for now in range(520, 1021, 20):
+            engine.update(now, {0: reading(3000), 1: ignored})
+        self.assertEqual(engine.snapshot()['step'], 3)
+        for now in range(1040, 1561, 20):
+            engine.update(now, {0: reading(0), 1: ignored})
+        self.assertEqual(engine.state, 'COMPLETE')
+        self.assertEqual(engine.duties, [0] * 6)
+
+    def test_invalid_selection_does_not_replace_previous_selection(self):
+        engine = control.ControlEngine((0, 1))
+        for invalid in ((0, 0), (True,), (6,), (-1,)):
+            with self.assertRaises(ValueError):
+                engine.set_enabled(invalid)
+            self.assertEqual(engine.enabled, (0, 1))
+
     def test_independent_seekers_and_configurable_rate_limit(self):
         engine = self.make(enabled=(0, 1), max_power_per_s=8)
         self.initial_zero(engine)

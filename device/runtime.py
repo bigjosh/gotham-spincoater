@@ -3,6 +3,7 @@ import _thread
 from machine import Pin
 from time import ticks_ms, ticks_us, ticks_diff, ticks_add, sleep_ms
 from control import ControlEngine
+from fan_settings import FanSettings
 from pio_fan import PioFan
 import config
 
@@ -12,22 +13,35 @@ class _Button:
         self.pin = Pin(gpio, Pin.IN, Pin.PULL_UP)
         self.raw = self.stable = self.pin.value()
         self.changed = ticks_ms()
+        self.blocked = False
+
+    def block_until_release(self):
+        self.blocked = True
 
     def pressed(self, now):
         value = self.pin.value()
         if value != self.raw:
             self.raw, self.changed = value, now
+        pressed = False
         if value != self.stable and ticks_diff(now, self.changed) >= 30:
             self.stable = value
-            return value == 0
-        return False
+            pressed = value == 0
+        if self.blocked:
+            if value == 1 and self.stable == 1:
+                self.blocked = False
+            return False
+        return pressed
 
 
 class Controller:
-    def __init__(self, book):
+    EDIT_TIMEOUT_MS = 1000
+
+    def __init__(self, book, fan_settings=None):
         self.book = book
         self.lock = _thread.allocate_lock()
         self.editing = False
+        self._edit_ready = False
+        self._pending_enabled = None
         self.closing = False
         self.finished = False
         self.started = False
@@ -41,13 +55,12 @@ class Controller:
         self._settings = book.settings()
         self._snapshot = None
         self.fans = {}
-        self.enabled = tuple(config.ENABLED_CHANNELS)
-        if (not self.enabled or len(set(self.enabled)) != len(self.enabled) or
-                any(type(i) is not int or not 0 <= i < 6 for i in self.enabled)):
-            raise ValueError('Enable one or more unique fan channels 0..5')
-        if any(i >= 4 for i in self.enabled) and not config.AUX_LINKS_DISCONNECTED:
-            raise ValueError('Disconnect kit RGB/buzzer/D1/D2 links before enabling fans 4/5')
-        numbers = [n for i in self.enabled for n in config.FUTURE_CHANNELS[i]]
+        self.available = tuple(range(6 if config.AUX_LINKS_DISCONNECTED else 4))
+        self.fan_settings = fan_settings or FanSettings(
+            defaults=config.ENABLED_CHANNELS, available=self.available)
+        self.enabled = tuple(i for i in self.fan_settings.load() if i in self.available)
+        self._outputs_parked = False
+        numbers = [n for i in self.available for n in config.FUTURE_CHANNELS[i]]
         if len(set(numbers)) != len(numbers):
             raise ValueError('Fan GPIO allocation overlaps')
         self.start_button = _Button(config.BUTTON_START)
@@ -55,13 +68,15 @@ class Controller:
         try:
             # Allocate fan PIO before starting Wi-Fi so its driver can select a
             # remaining PIO block. No fan starts at nonzero power here.
-            for i in self.enabled:
+            for i in self.available:
                 pwm, tach = config.FUTURE_CHANNELS[i]
                 self.fans[i] = PioFan(pwm, tach,
                     sm_id=config.TACH_STATE_MACHINES[i], stop_pin=config.BUTTON_STOP,
                     window=config.PERIOD_AVERAGE, pulses_per_rev=config.PULSES_PER_REV)
+                if i not in self.enabled:
+                    self.fans[i].stop()
             self.engine = ControlEngine(enabled=self.enabled)
-            self._snapshot = self.engine.snapshot()
+            self._snapshot = self._state()
         except BaseException:
             for fan in self.fans.values():
                 fan.close()
@@ -83,11 +98,112 @@ class Controller:
 
     def _stop_outputs(self):
         """Driver teardown: worker only, or core 0 after worker acknowledgement."""
+        successful = True
         for fan in self.fans.values():
             try:
                 fan.stop()
             except Exception as error:
                 self.error = str(error)
+                successful = False
+        self._outputs_parked = True
+        return successful
+
+    def _state(self):
+        state = self.engine.snapshot()
+        for i, fan in enumerate(state['fans']):
+            fan['available'] = i in self.available
+            fan['unavailable_reason'] = ('' if fan['available'] else
+                'Disconnect kit RGB/buzzer/D1/D2 links before enabling fans 4/5')
+        state['fan_settings_source'] = self.fan_settings.source
+        state['fan_settings_error'] = self.fan_settings.load_error
+        return state
+
+    def _service_edit(self):
+        """Worker-only pause/commit acknowledgement, with every PWM held LOW."""
+        # A START edge can still be inside its debounce window when flash IO
+        # finishes. Require a release before recognizing another press.
+        self.start_button.block_until_release()
+        if not self._edit_ready:
+            if not self._stop_outputs():
+                self.request_shutdown('Could not stop outputs for editing')
+                raise RuntimeError('Could not stop outputs for editing')
+            with self.lock:
+                self._edit_ready = True
+        with self.lock:
+            pending = self._pending_enabled
+        if pending is not None:
+            self.engine.set_enabled(pending)
+            self.enabled = pending
+            if not self.stop_pin.value():
+                self.engine.stop('STOP button')
+            state = self._state()
+            with self.lock:
+                self._snapshot = state
+                self._pending_enabled = None
+
+    def _wait_edit(self, applied=False):
+        began = ticks_ms()
+        while True:
+            with self.lock:
+                ready = (self._pending_enabled is None if applied else self._edit_ready)
+            if ready and not self.closing:
+                return
+            if (self.closing or self.finished or
+                    ticks_diff(ticks_ms(), began) >= self.EDIT_TIMEOUT_MS):
+                # The worker might still be between driver operations. Hold
+                # hardware STOP rather than attempting a core-0 teardown.
+                self.request_shutdown('Fan settings worker acknowledgement failed')
+                raise RuntimeError('Controller stopped: fan settings acknowledgement failed')
+            sleep_ms(2)
+
+    def _begin_edit(self):
+        with self.lock:
+            if self._running or self.editing or self.closing:
+                raise RuntimeError('Stop the recipe before editing')
+            self.editing = True
+            self._edit_ready = False
+        try:
+            if self.started:
+                self._wait_edit()
+            else:
+                # Construction/host tests: no worker exists yet, so core 0 is
+                # still the sole driver owner.
+                self._service_edit()
+        except BaseException:
+            self._end_edit()
+            raise
+
+    def _end_edit(self):
+        with self.lock:
+            self.editing = False
+            self._edit_ready = False
+
+    def set_fan_enabled(self, channel, enabled):
+        """Persist an idle selection on core 0; core 1 applies and publishes it."""
+        if type(channel) is not int or not 0 <= channel < 6 or type(enabled) is not bool:
+            raise ValueError('Choose a fan from 0 to 5 and a boolean enabled setting')
+        if channel not in self.available:
+            raise ValueError('Fan %d unavailable: disconnect the kit links first' % channel)
+        self._begin_edit()
+        try:
+            candidate = tuple(i for i in self.available
+                              if (enabled if i == channel else i in self.enabled))
+            if candidate != self.enabled:
+                try:
+                    self.fan_settings.save(candidate)
+                except Exception:
+                    if self.fan_settings.uncertain:
+                        self.request_shutdown('Fan settings storage outcome uncertain')
+                    raise
+                with self.lock:
+                    self._pending_enabled = candidate
+                if self.started:
+                    self._wait_edit(applied=True)
+                else:
+                    self._service_edit()
+            return self.snapshot()
+        finally:
+            self._end_edit()
 
     def request_shutdown(self, reason=None):
         """Core-0-safe shutdown request, without touching live DMA/SM objects.
@@ -128,7 +244,13 @@ class Controller:
                     if self.engine.state != 'STOPPED':
                         self.engine.stop('STOP button')
                         self._stop_outputs()
-                elif start:
+                if self.editing:
+                    self._service_edit()
+                    # START presses sampled while editing are consumed. Keep
+                    # STOP handling and the heartbeat alive during flash IO.
+                    self.heartbeat = ticks_ms()
+                    continue
+                if self.stop_pin.value() and start:
                     with self.lock:
                         can_start = not self.editing and not self._running and not self.closing
                         profile, settings = self._profile, self._settings
@@ -138,13 +260,17 @@ class Controller:
                             self._running = True
                     if can_start:
                         try:
-                            for fan in self.fans.values():
+                            if not self.enabled:
+                                raise RuntimeError('Enable at least one fan before START')
+                            for i in self.enabled:
+                                fan = self.fans[i]
                                 if self.closing:
                                     raise RuntimeError('Controller shutting down')
                                 if not fan.arm():
                                     raise RuntimeError('STOP held or fan could not arm')
                                 if self.closing:
                                     raise RuntimeError('Controller shutting down')
+                            self._outputs_parked = False
                             self.engine.start(profile, settings, now)
                             if self.closing:
                                 raise RuntimeError('Controller shutting down')
@@ -153,7 +279,8 @@ class Controller:
                             self.engine.stop('Cannot start: ' + str(error))
                             self._stop_outputs()
 
-                readings = {i: fan.sample() for i, fan in self.fans.items()}
+                readings = ({} if self._outputs_parked else
+                            {i: self.fans[i].sample() for i in self.enabled})
                 duties = self.engine.update(now, readings)
                 if self.closing:
                     self.engine.stop('Controller shutting down')
@@ -161,8 +288,9 @@ class Controller:
                 if self.engine.state in ('STOPPED', 'FAULT'):
                     # Also propagates any individual PIO latch to all channels.
                     self._stop_outputs()
-                else:
-                    for i, fan in self.fans.items():
+                elif not self._outputs_parked:
+                    for i in self.enabled:
+                        fan = self.fans[i]
                         if self.closing:
                             self.engine.stop('Controller shutting down')
                             self._stop_outputs()
@@ -172,7 +300,7 @@ class Controller:
                 with self.lock:
                     self._running = running
                 if ticks_diff(now, last_publish) >= 100 or running != was_running:
-                    state = self.engine.snapshot()
+                    state = self._state()
                     for i, reading in readings.items():
                         state['fans'][i]['fault'] = reading.get('fault')
                         state['fans'][i]['tach_overflows'] = reading.get('overflows', 0)
@@ -189,7 +317,7 @@ class Controller:
         except BaseException as error:
             self.error = str(error)
             self.engine.stop('Controller error: ' + str(error))
-            state = self.engine.snapshot()
+            state = self._state()
             state['state'] = 'FAULT'
             state['message'] = self.error
             with self.lock:
@@ -208,10 +336,7 @@ class Controller:
         return result
 
     def save_config(self, value):
-        with self.lock:
-            if self._running or self.editing or self.closing:
-                raise RuntimeError('Stop the recipe before editing')
-            self.editing = True
+        self._begin_edit()
         try:
             self.book.save(value)
             profile, settings = self.book.selectedprofile(), self.book.settings()
@@ -219,7 +344,7 @@ class Controller:
                 self._profile, self._settings = profile, settings
             return self.book.data
         finally:
-            self.editing = False
+            self._end_edit()
 
     def close(self):
         if self._closed:

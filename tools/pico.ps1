@@ -160,7 +160,7 @@ for _name, _symbol in (('sync_program','sync_program'), ('open_drain_pwm','_open
         for _block in range(3):
             if _program[1 + _block] >= 0:
                 rp2.PIO(_block).remove_program(_program)
-for _module in ('main','runtime','dashboard','portal','webpage','control','recipes','pio_fan','combined_program','rig','ui','fan','sync_tach','sync_program','periods','open_drain_pwm','display','config'):
+for _module in ('main','runtime','dashboard','portal','webpage','control','recipes','fan_settings','touch','touch_controls','pio_fan','combined_program','rig','ui','fan','sync_tach','sync_program','periods','open_drain_pwm','display','config'):
     sys.modules.pop(_module, None)
 '@
             Invoke-Raw $unloadCode | Out-Null

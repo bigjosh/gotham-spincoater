@@ -3,6 +3,7 @@ import importlib.util
 from pathlib import Path
 import sys
 import threading
+import tempfile
 import types
 import unittest
 from unittest.mock import patch
@@ -68,6 +69,7 @@ class FakeFan:
         self.on_sample = None
         self.arm_result = True
         self.fault = None
+        self.samples = 0
         self.commands = []
         self.on_close = None
         self.all.append(self)
@@ -80,6 +82,7 @@ class FakeFan:
         return self.arm_result
 
     def sample(self):
+        self.samples += 1
         if self.on_sample:
             self.on_sample()
         return {"rpm": 0, "valid": False, "pulses": 0,
@@ -109,6 +112,9 @@ class ButtonScript:
         result = self.press
         self.press = False
         return result
+
+    def block_until_release(self):
+        self.press = False
 
 
 class RuntimeTests(unittest.TestCase):
@@ -164,15 +170,21 @@ class RuntimeTests(unittest.TestCase):
         self.runtime = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(self.runtime)
         self.controllers = []
+        self.folder = tempfile.TemporaryDirectory()
 
     def tearDown(self):
         for controller in self.controllers:
             controller.close()
         self.paths.stop()
         self.modules.stop()
+        self.folder.cleanup()
 
     def controller(self):
-        controller = self.runtime.Controller(self.book)
+        from fan_settings import FanSettings
+        settings = FanSettings(defaults=self.config.ENABLED_CHANNELS,
+                               available=tuple(range(6 if self.config.AUX_LINKS_DISCONNECTED else 4)),
+                               path=str(Path(self.folder.name) / 'fans.json'))
+        controller = self.runtime.Controller(self.book, fan_settings=settings)
         self.controllers.append(controller)
         return controller
 
@@ -189,10 +201,14 @@ class RuntimeTests(unittest.TestCase):
         data["settings"]["max_power_per_s"] = 7
         return data
 
-    def test_constructor_allocates_only_enabled_fans_at_zero(self):
+    def test_constructor_allocates_available_fans_at_zero_and_parks_disabled(self):
         controller = self.controller()
-        self.assertEqual(list(controller.fans), [0])
-        self.assertEqual(controller.fans[0].output, 0)
+        self.assertEqual(list(controller.fans), [0, 1, 2, 3])
+        self.assertTrue(all(fan.output == 0 for fan in controller.fans.values()))
+        self.assertTrue(all(controller.fans[i].stopped for i in (1, 2, 3)))
+        self.assertFalse(controller.fans[0].stopped)
+        self.assertEqual([f['available'] for f in controller.snapshot()['fans']],
+                         [True, True, True, True, False, False])
         self.assertFalse(controller.snapshot()["running"])
 
     def test_partial_constructor_failure_closes_prior_fans(self):
@@ -382,7 +398,7 @@ class RuntimeTests(unittest.TestCase):
         for fan in controller.fans.values():
             fan.on_close = lambda: observed.append((FakePin.modes[14], FakePin.levels[14]))
         controller.close()
-        self.assertEqual(observed, [(FakePin.OUT, 0), (FakePin.OUT, 0)])
+        self.assertEqual(observed, [(FakePin.OUT, 0)] * 4)
         self.assertTrue(all(fan.closed for fan in controller.fans.values()))
         self.assertEqual(FakePin.modes[14], FakePin.IN)
 
@@ -398,6 +414,181 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(FakePin.modes[14], FakePin.OUT)
         self.assertEqual(FakePin.levels[14], 0)
         controller.fans[0].on_close = None
+
+    def test_disabled_fans_are_not_sampled_commanded_or_used_for_faults(self):
+        controller = self.controller()
+        controller.fans[1].fault = 'command_underrun'
+        self.one_tick(controller)
+        self.assertNotEqual(controller.snapshot()['state'], 'FAULT')
+        for i in (1, 2, 3):
+            self.assertEqual(controller.fans[i].arms, 0)
+            self.assertEqual(controller.fans[i].samples, 0)
+            self.assertEqual(controller.fans[i].commands, [])
+
+    def test_contested_channels_are_never_constructed_or_enabled(self):
+        self.config.ENABLED_CHANNELS = (0, 4, 5)
+        controller = self.controller()
+        self.assertEqual(controller.enabled, (0,))
+        self.assertEqual([fan.pwm for fan in FakeFan.all], [18, 20, 22, 0])
+        for i in (4, 5):
+            with self.assertRaisesRegex(ValueError, 'disconnect the kit links'):
+                controller.set_fan_enabled(i, True)
+        self.assertEqual(list(Path(self.folder.name).iterdir()), [])
+
+    def test_aux_flag_makes_all_six_available_without_enabling_them(self):
+        self.config.AUX_LINKS_DISCONNECTED = True
+        controller = self.controller()
+        self.assertEqual(tuple(controller.fans), tuple(range(6)))
+        self.assertEqual(controller.enabled, (0,))
+        state = controller.set_fan_enabled(4, True)
+        self.assertTrue(state['fans'][4]['enabled'])
+        self.assertEqual(controller.fans[4].arms, 0)
+        self.assertTrue(controller.fans[4].stopped)
+
+    def test_all_off_is_persisted_and_start_refused_before_any_arm(self):
+        controller = self.controller()
+        state = controller.set_fan_enabled(0, False)
+        self.assertFalse(any(f['enabled'] for f in state['fans']))
+        self.assertEqual(controller.fan_settings.load(), ())
+        self.one_tick(controller)
+        self.assertTrue(all(fan.arms == 0 for fan in controller.fans.values()))
+        self.assertIn('Enable at least one fan', controller.snapshot()['message'])
+        self.assertFalse(controller.engine.running)
+
+    def test_toggle_does_not_rearm_stopped_output(self):
+        controller = self.controller()
+        controller.engine.stop('STOP button')
+        controller._stop_outputs()
+        controller.set_fan_enabled(1, True)
+        self.assertEqual(controller.enabled, (0, 1))
+        self.assertTrue(all(fan.arms == 0 for fan in controller.fans.values()))
+        self.assertTrue(all(fan.stopped for fan in controller.fans.values()))
+
+    def test_selection_refused_during_running_and_start_claim(self):
+        controller = self.controller()
+        original = controller.enabled
+        observed = []
+        def try_toggle():
+            with self.assertRaisesRegex(RuntimeError, 'Stop the recipe'):
+                controller.set_fan_enabled(1, True)
+            observed.append(controller.enabled)
+        controller.fans[0].on_arm = try_toggle
+        self.one_tick(controller)
+        self.assertEqual(observed, [original])
+        self.assertEqual(list(Path(self.folder.name).iterdir()), [])
+
+    def test_save_failure_preserves_live_and_published_selection(self):
+        controller = self.controller()
+        with patch.object(controller.fan_settings, 'save', side_effect=OSError('disk full')):
+            with self.assertRaisesRegex(OSError, 'disk full'):
+                controller.set_fan_enabled(0, False)
+        self.assertEqual(controller.enabled, (0,))
+        self.assertTrue(controller.snapshot()['fans'][0]['enabled'])
+        self.assertFalse(controller.editing)
+        self.assertTrue(all(fan.stopped for fan in controller.fans.values()))
+
+    def test_uncertain_save_asserts_hardware_stop(self):
+        controller = self.controller()
+        controller.fan_settings.uncertain = True
+        with patch.object(controller.fan_settings, 'save', side_effect=OSError('flash failure')):
+            with self.assertRaises(OSError):
+                controller.set_fan_enabled(0, False)
+        self.assertTrue(controller.closing)
+        self.assertEqual(FakePin.levels[14], 0)
+
+    def test_live_worker_ack_precedes_flash_and_selection_publishes_before_return(self):
+        controller = self.controller()
+        controller.started = True
+        phases = []
+        original_save = controller.fan_settings.save
+        def save(candidate):
+            self.assertTrue(controller._edit_ready)
+            self.assertTrue(all(fan.stopped for fan in controller.fans.values()))
+            self.assertEqual(controller.enabled, (0,))
+            phases.append('save')
+            return original_save(candidate)
+        def acknowledge():
+            phases.append('apply' if controller._pending_enabled is not None else 'pause')
+            controller._service_edit()
+        controller.fan_settings.save = save
+        self.clock.on_sleep = acknowledge
+        try:
+            state = controller.set_fan_enabled(1, True)
+        finally:
+            self.clock.on_sleep = None
+            controller.finished = True
+        self.assertEqual(phases, ['pause', 'save', 'apply'])
+        self.assertEqual(controller.enabled, (0, 1))
+        self.assertTrue(state['fans'][1]['enabled'])
+        self.assertFalse(controller.editing)
+        self.assertEqual(controller.fans[1].arms, 0)
+
+    def test_missing_pause_ack_stops_without_writing_or_core0_driver_calls(self):
+        controller = self.controller()
+        controller.started = True
+        stops = [fan.stops for fan in controller.fans.values()]
+        with patch.object(controller.fan_settings, 'save') as save:
+            with self.assertRaisesRegex(RuntimeError, 'acknowledgement failed'):
+                controller.set_fan_enabled(1, True)
+        self.assertEqual(save.call_count, 0)
+        self.assertEqual([fan.stops for fan in controller.fans.values()], stops)
+        self.assertEqual(FakePin.levels[14], 0)
+        self.assertTrue(controller.closing)
+        controller.finished = True
+
+    def test_missing_apply_ack_stops_after_disk_save_without_live_change(self):
+        controller = self.controller()
+        controller.started = True
+        self.clock.on_sleep = lambda: setattr(controller, '_edit_ready', True)
+        try:
+            with self.assertRaisesRegex(RuntimeError, 'acknowledgement failed'):
+                controller.set_fan_enabled(1, True)
+        finally:
+            self.clock.on_sleep = None
+            controller.finished = True
+        self.assertEqual(controller.enabled, (0,))
+        self.assertEqual(controller.fan_settings.load(), (0, 1))
+        self.assertTrue(controller.closing)
+        self.assertEqual(FakePin.levels[14], 0)
+
+    def test_editing_worker_services_stop_and_heartbeat_and_consumes_start(self):
+        controller = self.controller()
+        controller.editing = True
+        FakePin.levels[14] = 0
+        self.clock.now = 25
+        self.one_tick(controller)
+        self.assertEqual(controller.engine.message, 'STOP button')
+        self.assertEqual(controller.heartbeat, 25)
+        self.assertEqual(controller.fans[0].arms, 0)
+        self.assertTrue(controller._edit_ready)
+
+    def test_failed_output_stop_never_acknowledges_or_saves_edit(self):
+        controller = self.controller()
+        with patch.object(controller.fans[0], 'stop', side_effect=OSError('driver stop failed')), \
+                patch.object(controller.fan_settings, 'save') as save:
+            with self.assertRaisesRegex(RuntimeError, 'Could not stop outputs'):
+                controller.set_fan_enabled(0, False)
+        self.assertEqual(save.call_count, 0)
+        self.assertFalse(controller._edit_ready)
+        self.assertFalse(controller.editing)
+        self.assertTrue(controller.closing)
+        self.assertEqual(FakePin.levels[14], 0)
+
+    def test_start_begun_during_edit_does_not_mature_after_edit_finishes(self):
+        controller = self.controller()
+        button = controller.start_button  # Exercise real debounce, not ButtonScript.
+        controller._begin_edit()
+        FakePin.levels[15] = 0
+        self.assertFalse(button.pressed(10))
+        controller._end_edit()
+        self.assertFalse(button.pressed(50))
+        self.assertFalse(button.pressed(500))
+        FakePin.levels[15] = 1
+        self.assertFalse(button.pressed(510))
+        self.assertFalse(button.pressed(550))
+        FakePin.levels[15] = 0
+        self.assertFalse(button.pressed(560))
+        self.assertTrue(button.pressed(600))
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 
 View the Pico from above with its USB socket at the top. The middle columns are physical header pin numbers; GP numbers are the names used in MicroPython. This map assumes the kit's original component links remain fitted.
 
-**FAN #n** marks the six-channel firmware allocation; it does not confirm external wiring. **Fans #0–#3 are enabled. Fans #4/#5 are disabled.** A **†** marks a fan signal that requires disconnecting the kit peripheral shown in parentheses before use. Kit connections remain occupied even when the application does not use that feature.
+**FAN #n** marks the six-channel firmware allocation; it does not confirm external wiring. **Fans #0–#3 are available and enabled by default; touchscreen selections persist across reboots. Fans #4/#5 are locked.** A **†** marks a fan signal that requires disconnecting the kit peripheral shown in parentheses before use. Kit connections remain occupied even when the application does not use that feature.
 
 | Left header | Pin | Pin | Right header |
 | --- | ---: | :--- | --- |
@@ -31,16 +31,16 @@ Header locations follow the [Raspberry Pi Pico 2 W datasheet, figures 2 and 4](h
 
 ## All six fan pairs
 
-| Fan | PWM GPIO (physical pin) | Tach GPIO (physical pin) | Current status |
+| Fan | PWM GPIO (physical pin) | Tach GPIO (physical pin) | Availability / initial selection |
 | --- | --- | --- | --- |
-| **#0** | GP18 (24) | GP19 (25) | Enabled |
-| **#1** | GP20 (26) | GP21 (27) | Enabled |
-| **#2** | GP22 (29) | GP28 (34) | Enabled; tach pull-up to 3.3 V only |
-| **#3** | GP0 (1) | GP1 (2) | Enabled |
-| **#4** | GP12 (16) | GP16 (21) | Disabled; isolate RGB data and D1 branches first |
-| **#5** | GP13 (17) | GP17 (22) | Disabled; isolate buzzer-driver input and D2 branches first |
+| **#0** | GP18 (24) | GP19 (25) | Available; enabled by default |
+| **#1** | GP20 (26) | GP21 (27) | Available; enabled by default |
+| **#2** | GP22 (29) | GP28 (34) | Available; enabled by default; tach pull-up to 3.3 V only |
+| **#3** | GP0 (1) | GP1 (2) | Available; enabled by default |
+| **#4** | GP12 (16) | GP16 (21) | Locked; isolate RGB data and D1 branches first |
+| **#5** | GP13 (17) | GP17 (22) | Locked; isolate buzzer-driver input and D2 branches first |
 
-The eight GPIOs without kit peripheral connections are **GP0, GP1, GP18, GP19, GP20, GP21, GP22 and GP28**. They are now assigned to four enabled PWM/tach pairs. There is no fifth free pair while keeping all original kit connections. The left-side pair, GP0/GP1, serves fan #3.
+The eight GPIOs without kit peripheral connections are **GP0, GP1, GP18, GP19, GP20, GP21, GP22 and GP28**. They are assigned to four available PWM/tach pairs; disabling a fan through touch holds its PWM LOW and does not free its GPIOs for another purpose. There is no fifth free pair while keeping all original kit connections. The left-side pair, GP0/GP1, serves fan #3.
 
 To reach six independent pairs while keeping the display, touch, buttons and joystick, the existing plan reclaims **GP12, GP13, GP16 and GP17** by disconnecting the kit's RGB LED, buzzer and indicator LED links. This requires physical changes to the kit; disabling them in software does not disconnect them. No such modifications have been made.
 

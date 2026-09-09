@@ -24,7 +24,7 @@ class ControlEngine:
     QUIET_S = 1.5
 
     def __init__(self, enabled=(0,)):
-        if (not enabled or len(set(enabled)) != len(enabled)
+        if (len(set(enabled)) != len(enabled)
                 or any(type(channel) is not int or not 0 <= channel < 6
                        for channel in enabled)):
             raise ValueError("enabled channels must be unique integers from 0 to 5")
@@ -32,7 +32,7 @@ class ControlEngine:
         self.duties = [0.0] * 6
         self.state = "IDLE"
         self.target_rpm = 0.0
-        self.message = "Ready"
+        self.message = "Ready" if self.enabled else "Enable at least one fan before START"
         self._profile = None
         self._settings = None
         self._index = 0
@@ -60,6 +60,8 @@ class ControlEngine:
     def start(self, profile, settings, now_ms):
         if self.running:
             raise ValueError("stop the current run before starting another")
+        if not self.enabled:
+            raise ValueError("Enable at least one fan before START")
         self._profile = validate_profile(profile)
         self._settings = validate_settings(settings)
         self.duties = [0.0] * 6
@@ -75,6 +77,15 @@ class ControlEngine:
         self._standstill_assumed = False
         self._blind_coast = False
         self._enter_step(0)
+        return self.snapshot()
+
+    def set_enabled(self, enabled):
+        """Control-core-only idle reconfiguration; never starts an output."""
+        if self.running:
+            raise RuntimeError("Stop the recipe before changing fans")
+        # Validate before replacing any current state. Disabled channels lose
+        # stale measurements, duty and settling history at the same boundary.
+        self.__init__(enabled)
         return self.snapshot()
 
     def stop(self, reason="Stopped"):

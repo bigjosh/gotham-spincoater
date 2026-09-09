@@ -99,7 +99,7 @@ AUX_LINKS_DISCONNECTED = True
 ENABLED_CHANNELS = (0, 1, 2, 3, 4, 5)
 ```
 
-For incremental testing, enable only connected fans; for example, `(0, 4)` enables the original fan and the newly wired fan #4. The `AUX_LINKS_DISCONNECTED` flag is a manual declaration that the four connections have been isolated, **not an electrical test**. An enabled but unwired fan can cause the entire recipe to fault on missing tach. Leave `FUTURE_CHANNELS` and the PIO state-machine allocation unchanged.
+`ENABLED_CHANNELS` is the initial selection only. Existing touchscreen choices in `fans.json` take precedence; after reboot, use each tile's ENABLE/DISABLE button to select the newly connected fans. For incremental testing, select only connected fans, such as #0 and #4. The `AUX_LINKS_DISCONNECTED` flag is a manual declaration that the four connections have been isolated, **not an electrical test**. An enabled but unwired fan can cause the entire recipe to fault on missing tach. Leave `FUTURE_CHANNELS` and the PIO state-machine allocation unchanged.
 
 With motor power still disconnected, power the Pico by USB. From the repository directory, deploy the edited configuration and reboot:
 
@@ -116,7 +116,7 @@ After USB reconnects, inspect startup if needed:
 
 The helper targets this project's identified Pico and excludes COM4/COM5; see [deployment details](README.md#deploy-and-test) before adapting it for another board. These commands are instructions for the completed hardware modification, not actions performed by this documentation update.
 
-1. Confirm the dashboard boots idle, the intended fan tiles are enabled, and requested power is zero. The supply indicators may still light; disconnected RGB/D1/D2 behavior is not a verification test.
+1. Confirm the dashboard boots idle and requested power is zero. The new fan tiles should now offer ENABLE rather than LOCKED. Select the connected fans using their touch buttons; disabled tiles are red. The supply indicators may still light; disconnected RGB/D1/D2 behavior is not a verification test.
 2. Secure the fans for an unloaded bench test. Apply external motor power after the idle dashboard appears.
 3. Use a short recipe at an achievable RPM to check each newly enabled fan's RPM response. Press left START, then press right STOP while the fans run. Every output should command zero; the fans will coast down. Releasing STOP must not restart the run.
 4. If a fan has missing or implausible tach, stop and remove motor power before checking its individual signal pair and common ground. Do not enable the remaining channels until the connected ones behave correctly.
