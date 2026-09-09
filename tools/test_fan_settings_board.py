@@ -26,7 +26,10 @@ try:
     controller = Controller(RecipeBook(), fan_settings=settings)
     controller.start_thread()
     sleep_ms(150)
-    for selected in ((0,), (), (0, 1), (0, 1, 2, 3), (1, 2, 3), ()):
+    selections = ((0,), (), (0, 1), (0, 1, 2, 3), (1, 2, 3))
+    if config.AUX_LINKS_DISCONNECTED:
+        selections += ((0, 1, 2, 3, 4, 5), (4, 5))
+    for selected in selections + ((),):
         for channel in controller.available:
             controller.set_fan_enabled(channel, channel in selected)
         state = controller.snapshot()

@@ -85,3 +85,13 @@ All **219 host tests passed**, including the updated shipped-configuration expec
 Reassigned fans #3–#5 so their PWM pin sits immediately below their tach pin on the same header, viewed with the Pico USB connector at the top. PWM/tach pairs are now **#0 GP18/19, #1 GP20/21, #2 GP22/28, #3 GP1/0, #4 GP13/12, #5 GP16/17**. Fan #2 retains its nonadjacent pair as requested; fans #0/#1 already met the placement rule. Fan numbers, saved selections, recipes, and PIO state-machine allocation are unchanged.
 
 All **220 host tests passed**, including a new check against physical header positions and updated six-channel driver/runtime fixtures. Documentation now groups RGB/buzzer isolation under fan #4 and D1/D2 isolation under fan #5. This pin map has not been deployed or tested electrically; fans #3–#5 require rewiring with power disconnected before deployment.
+
+## Latest firmware deployed and selection checked on Pico — 2026-09-08
+
+Deployed all device Python modules from **`b77ae46`** to project Pico USB serial **8792b44d9c11021d**, identified on COM7. Each uploaded file passed SHA-256 readback verification before activation; `main.py` was activated last. Existing `fans.json` and `recipes.json` were preserved. COM4 and COM5 were not opened. [Upload transcript](touch-selection-deploy.txt).
+
+- **Normal startup passed:** detected GT911 product `911`, firmware 4192, address `0x5D`, raw resolution 320×480, and display rotation 1. The TFT/controller/AP application reported ready with no startup exception. [Initial startup](touch-selection-first-startup.txt).
+- **On-board fan-selection integration passed:** exercised empty, single, multiple, all-six, and #4/#5-only selections through the live core-1 acknowledgement path. Each selection reloaded correctly from its separate temporary settings file. All six PWM GPIOs read LOW, the worker heartbeat remained current, and no recipe was started. Temporary files were removed afterward. [Test transcript](fan-selection-board-test.txt).
+- **Final reboot passed:** the normal application restored the saved selection **`(0, 3)`** and remained IDLE with both selected fans at 0% requested power. The observed loop-lag maximum was 0 ms in this short idle sample. [Final startup](touch-selection-startup.txt).
+
+This completes deployment of the touch-selection and adjacent-pin changes. The checks verify controller detection, selection persistence, control-core coordination, and zero output levels; physical touch alignment and positive-power operation of the rewired fans were not measured in this deployment session.

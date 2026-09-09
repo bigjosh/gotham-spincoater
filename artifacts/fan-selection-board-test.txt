@@ -1,0 +1,10 @@
+Project Pico 8792b44d9c11021d on COM7
+SELECTION_OK enabled=(0,) LOW=True saved=True heartbeat=True
+SELECTION_OK enabled=() LOW=True saved=True heartbeat=True
+SELECTION_OK enabled=(0, 1) LOW=True saved=True heartbeat=True
+SELECTION_OK enabled=(0, 1, 2, 3) LOW=True saved=True heartbeat=True
+SELECTION_OK enabled=(1, 2, 3) LOW=True saved=True heartbeat=True
+SELECTION_OK enabled=(0, 1, 2, 3, 4, 5) LOW=True saved=True heartbeat=True
+SELECTION_OK enabled=(4, 5) LOW=True saved=True heartbeat=True
+SELECTION_OK enabled=() LOW=True saved=True heartbeat=True
+FAN_SELECTION_BOARD_OK all outputs zero; no recipe started
