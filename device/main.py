@@ -86,6 +86,12 @@ def run(duration_ms=None):
                 last_display = now
             if ticks_diff(now, last_report) >= 1000:
                 value = status()
+                for channel, fan in enumerate(value['fans']):
+                    raw = fan.get('raw_rpm')
+                    if raw is not None and raw < 0:
+                        print('TACH_NEGATIVE fan=%d raw=%s mean_us=%s samples=%s pulses=%s age_ms=%s' %
+                              (channel, raw, fan.get('period_us'), fan.get('samples'),
+                               fan.get('pulses'), fan.get('age_ms')))
                 fans = ' '.join('#%d:%s/%g%%%s' % (i,
                     str(round(f['display_rpm'])),
                     f['duty'], '[OFF_RPM]' if f.get('warning') else '')

@@ -1,8 +1,9 @@
-"""One RP2350 PIO machine generates PWM, measures tach and latches STOP.
+"""Continuous RP2350 PIO PWM/tach with a shared hardware STOP watcher.
 
 The 32 words occupy a whole PIO instruction memory, so computed jumps have
 origin zero. PioFan initializes X and ISR with injected instructions before
-starting. Input base is STOP; JMP PIN independently selects this fan's tach.
+starting. JMP PIN selects this fan's tach. Words 29-31 are a separate STOP
+watcher, used only by SM11 to trigger GPIO-override DMA without halting tach.
 
 At 10 MHz every normal cycle lasts 1000 clocks. TX DMA supplies an atomic
 30-bit command: three output levels and three nine-bit delays. The cycle is
@@ -19,10 +20,12 @@ PIO_CLOCK_HZ = 10_000_000
 PWM_HZ = 10_000
 CYCLE_CLOCKS = 1000
 PERIOD_US = 100
-LOW_SAMPLE_PC = 20
-HIGH_SAMPLE_PC = 25
-STOP_PC = 6
-STOP_PCS = (6, 7)
+LOW_SAMPLE_PC = 17
+HIGH_SAMPLE_PC = 22
+STOP_PC = 3
+STOP_PCS = (3, 4)  # Abnormal command starvation only; normal STOP keeps sampling.
+GUARD_PC = 29
+GUARD_FIRED_PCS = (30, 31)
 
 
 def pack_command(percent):
@@ -62,44 +65,48 @@ def pack_command(percent):
 def combined_program():
     wrap_target()
     label('cycle')
-    mov(osr, pins)                 # 0: bit zero is active-low STOP.
-    out(y, 1)                     # 1
-    jmp(not_y, 'stop')             # 2
-    mov(y, status)                # 3: all ones when TX FIFO is empty.
-    jmp(not_y, 'command')          # 4
-    irq(rel(0))                   # 5: latch command-underrun fault flag.
+    mov(y, status) [3]             # 0: preserve the former three STOP clocks.
+    jmp(not_y, 'command')          # 1
+    irq(rel(0))                   # 2: latch command-underrun fault flag.
     label('stop')
-    set(pins, 0)                  # 6: release of STOP never resumes PWM.
-    jmp('stop')                   # 7
+    set(pins, 0)                  # 3: abnormal starvation stays fail-closed.
+    jmp('stop')                   # 4
     label('command')
-    pull(block)                   # 8: guard guarantees a word is available.
-    out(pins, 1)                  # 9: long phase starts/continues here.
-    out(y, 9)                     # 10
+    pull(block)                   # 5: guard guarantees a word is available.
+    out(pins, 1)                  # 6: long phase starts/continues here.
+    out(y, 9)                     # 7
     label('first_half')
-    jmp(y_dec, 'first_half')       # 11
-    out(pins, 1)                  # 12: short phase.
-    out(y, 9)                     # 13
+    jmp(y_dec, 'first_half')       # 8
+    out(pins, 1)                  # 9: short phase.
+    out(y, 9)                     # 10
     label('short_phase')
-    jmp(y_dec, 'short_phase')      # 14
-    out(pins, 1)                  # 15: return to the long phase.
-    out(y, 9)                     # 16
+    jmp(y_dec, 'short_phase')      # 11
+    out(pins, 1)                  # 12: return to the long phase.
+    out(y, 9)                     # 13
     label('last_half')
-    jmp(y_dec, 'last_half')        # 17
-    jmp(x_dec, 'dispatch')        # 18: decrement, even when X was zero.
+    jmp(y_dec, 'last_half')        # 14
+    jmp(x_dec, 'dispatch')        # 15: decrement, even when X was zero.
     label('dispatch')
-    mov(pc, isr)                  # 19: previous tach state chooses 20/25.
-    jmp(pin, 'rising')            # 20: previously LOW.
-    jmp('cycle') [4]              # 21
+    mov(pc, isr)                  # 16: previous tach state chooses 17/22.
+    jmp(pin, 'rising')            # 17: previously LOW.
+    jmp('cycle') [4]              # 18
     label('rising')
-    set(y, 25)                    # 22
-    mov(isr, y)                   # 23
-    jmp('cycle') [2]              # 24
-    jmp(pin, 'still_high')        # 25: previously HIGH.
-    mov(isr, invert(x))           # 26: complete falling-to-falling period.
-    push(noblock)                 # 27: never pause PWM for the consumer.
-    mov(x, invert(null))          # 28
-    set(y, 20)                    # 29
-    mov(isr, y)                   # 30
+    set(y, 22)                    # 19
+    mov(isr, y)                   # 20
+    jmp('cycle') [2]              # 21
+    jmp(pin, 'still_high')        # 22: previously HIGH.
+    mov(isr, invert(x))           # 23: complete falling-to-falling period.
+    push(noblock)                 # 24: never pause PWM for the consumer.
+    mov(x, invert(null))          # 25
+    set(y, 17)                    # 26
+    mov(isr, y)                   # 27
     wrap()
     label('still_high')
-    jmp('cycle') [4]              # 31: six clocks for every tach branch.
+    jmp('cycle') [4]              # 28: six clocks for every tach branch.
+    # A separate SM starts here with ISR preloaded to GPIO OUTOVER_LOW bit13.
+    # The first RX-paced DMA consumes that token, then chains the other pads.
+    label('guard')
+    wait(0, gpio, 14)             # 29: hardware STOP, independent of Python.
+    push(block)                   # 30
+    label('guard_latched')
+    jmp('guard_latched')          # 31: only explicit START re-arms the watcher.

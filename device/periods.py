@@ -1,4 +1,4 @@
-"""Allocation-free IRQ intake for complete tach periods measured by PIO."""
+"""Rolling window of complete tach periods, independent of motor state."""
 
 from array import array
 from machine import disable_irq, enable_irq
@@ -12,6 +12,8 @@ class PeriodMeasurements:
     Zero is a reset sentinel. Two accepted periods establish a valid reading.
     Pulse totals count accepted complete periods, excluding reset/timeout data.
     Call sample regularly to latch timeouts and extend the bounded IRQ counter.
+    The rig's control core owns record/sample; legacy IRQ callers are supported.
+    RUN, STOP, fan selection, and display thresholds never change this window.
     """
 
     _MASK = 0x1FFFFFFF

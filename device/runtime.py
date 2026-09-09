@@ -5,6 +5,7 @@ from time import ticks_ms, ticks_us, ticks_diff, ticks_add, sleep_ms
 from control import ControlEngine
 from fan_settings import FanSettings
 from pio_fan import PioFan
+from stop_guard import StopGuard
 import config
 
 
@@ -56,6 +57,7 @@ class Controller:
         self._settings = book.settings()
         self._snapshot = None
         self.fans = {}
+        self.stop_guard = None
         self.available = tuple(range(6 if config.AUX_LINKS_DISCONNECTED else 4))
         self.fan_settings = fan_settings or FanSettings(
             defaults=config.ENABLED_CHANNELS, available=self.available)
@@ -78,11 +80,15 @@ class Controller:
                     window=config.PERIOD_AVERAGE, pulses_per_rev=config.PULSES_PER_REV)
                 if i not in self.enabled:
                     self.fans[i].stop()
+            self.stop_guard = StopGuard(tuple(self.fans.values()), stop_pin=config.BUTTON_STOP)
+            self.stop_guard.arm()
             self.engine = ControlEngine(enabled=self.enabled, settings=self._settings)
             self._snapshot = self._state()
         except BaseException:
             for fan in self.fans.values():
                 fan.close()
+            if self.stop_guard is not None:
+                self.stop_guard.close()
             raise
 
     def start_thread(self):
@@ -110,6 +116,9 @@ class Controller:
                 successful = False
         self._outputs_parked = True
         return successful
+
+    def _stop_requested(self):
+        return not self.stop_pin.value() or self.stop_guard.fired()
 
     def _state(self):
         state = self.engine.snapshot()
@@ -172,6 +181,30 @@ class Controller:
                     raise
                 self._isolate_fan(i, 'tach monitor failed: ' + str(error))
 
+    def _sample_channels(self):
+        """Read every available tach stream independently of motor state."""
+        readings = {}
+        for i in self.available:
+            if self._driver_errors[i] is not None:
+                readings[i] = {'driver_error': self._driver_errors[i], 'valid': False}
+                continue
+            try:
+                reading = self.fans[i].sample()
+            except Exception as error:
+                self._isolate_fan(i, 'sample failed: ' + str(error))
+                readings[i] = {'driver_error': self._driver_errors[i], 'valid': False}
+                continue
+            if reading.get('fault') == 'clock_changed':
+                raise RuntimeError('Controller clock changed')
+            if reading.get('fault'):
+                # A broken driver is independent of its measured RPM or the
+                # shared STOP latch; the other tach streams remain readable.
+                self._isolate_fan(i, reading['fault'])
+                readings[i] = {'driver_error': self._driver_errors[i], 'valid': False}
+            else:
+                readings[i] = reading
+        return readings
+
     def _service_edit(self):
         """Worker-only pause/commit acknowledgement, with every PWM held LOW."""
         # A START edge can still be inside its debounce window when flash IO
@@ -191,13 +224,18 @@ class Controller:
             self.enabled = pending
         if pending_settings is not None:
             self.engine.configure_settings(pending_settings)
-        if pending is not None or pending_settings is not None:
-            if not self.stop_pin.value():
-                self.engine.stop('STOP button')
-            state = self._state()
-            with self.lock:
-                self._snapshot = state
+        if self._stop_requested():
+            self.engine.stop('STOP button')
+        # Do not restart a halted sampler during flash IO. Sampling its
+        # retained measurements is safe and keeps age/diagnostics published;
+        # a driver with independent capture can also drain fresh edges here.
+        self.engine.update(ticks_ms(), self._sample_channels())
+        state = self._state()
+        with self.lock:
+            self._snapshot = state
+            if pending is not None:
                 self._pending_enabled = None
+            if pending_settings is not None:
                 self._pending_settings = None
 
     def _wait_edit(self, applied=False):
@@ -300,7 +338,7 @@ class Controller:
                 # Do not perform a burst of catch-up power adjustments.
                 next_tick = ticks_add(now, 20)
                 start = self.start_button.pressed(now)
-                if not self.stop_pin.value():
+                if self._stop_requested():
                     if self.engine.state != 'STOPPED':
                         self.engine.stop('STOP button')
                         self._stop_outputs()
@@ -324,11 +362,13 @@ class Controller:
                                 raise RuntimeError('Enable at least one fan before START')
                             self._driver_errors = [None] * 6
                             self._error_parked.clear()
+                            if not self.stop_guard.arm():
+                                raise RuntimeError('STOP or clock change prevented arming')
                             for i in self.enabled:
                                 fan = self.fans[i]
                                 if self.closing:
                                     raise RuntimeError('Controller shutting down')
-                                if not self.stop_pin.value():
+                                if self._stop_requested():
                                     raise RuntimeError('STOP held')
                                 arm_error = None
                                 try:
@@ -337,7 +377,7 @@ class Controller:
                                     arm_error = 'arm failed: ' + str(error)
                                 if self.closing:
                                     raise RuntimeError('Controller shutting down')
-                                if not self.stop_pin.value():
+                                if self._stop_requested():
                                     raise RuntimeError('STOP held')
                                 if arm_error:
                                     self._isolate_fan(i, arm_error)
@@ -346,11 +386,16 @@ class Controller:
                                     # clock changed. A brief STOP may already
                                     # be released, so this remains global.
                                     raise RuntimeError('STOP or clock change prevented arming')
+                            # A brief STOP can fire and release while an arm
+                            # clears output overrides. Check the latch after
+                            # every arm and again after the complete sequence.
+                            if self._stop_requested():
+                                raise RuntimeError('STOP held')
                             self._outputs_parked = False
                             self.engine.start(profile, settings, now)
                             if self.closing:
                                 raise RuntimeError('Controller shutting down')
-                            if not self.stop_pin.value():
+                            if self._stop_requested():
                                 raise RuntimeError('STOP held')
                             was_running = True
                         except Exception as error:
@@ -362,29 +407,8 @@ class Controller:
                 readings = {}
                 if not self.closing:
                     self._monitor_idle_channels()
-                    for i in self.available:
-                        if self._driver_errors[i] is not None:
-                            readings[i] = {'driver_error': self._driver_errors[i], 'valid': False}
-                            continue
-                        try:
-                            reading = self.fans[i].sample()
-                        except Exception as error:
-                            self._isolate_fan(i, 'sample failed: ' + str(error))
-                            readings[i] = {'driver_error': self._driver_errors[i], 'valid': False}
-                            continue
-                        if reading.get('fault') == 'clock_changed':
-                            # A changed CPU clock invalidates every channel's
-                            # timing, rather than one fan's measurement.
-                            raise RuntimeError('Controller clock changed')
-                        if reading.get('fault'):
-                            # PIO resource errors are distinct from tach/RPM
-                            # warnings. A stopped broken driver must not be
-                            # mistaken for the shared physical STOP latch.
-                            self._isolate_fan(i, reading['fault'])
-                            readings[i] = {'driver_error': self._driver_errors[i], 'valid': False}
-                        else:
-                            readings[i] = reading
-                if self.closing or not self.stop_pin.value():
+                    readings = self._sample_channels()
+                if self.closing or self._stop_requested():
                     self.engine.stop('Controller shutting down' if self.closing else 'STOP button')
                     if not self._outputs_parked:
                         self._stop_outputs()
@@ -396,7 +420,7 @@ class Controller:
                         self._stop_outputs()
                 elif not self._outputs_parked:
                     for i in self.enabled:
-                        if self.closing or not self.stop_pin.value():
+                        if self.closing or self._stop_requested():
                             self.engine.stop('Controller shutting down' if self.closing else 'STOP button')
                             self._stop_outputs()
                             break
@@ -413,7 +437,6 @@ class Controller:
                     state = self._state()
                     for i, reading in readings.items():
                         state['fans'][i]['tach_overflows'] = reading.get('overflows', 0)
-                        state['fans'][i]['age_ms'] = reading.get('age_ms')
                     state['loop_lag_ms'] = self.max_lag_ms
                     state['tick_us'] = self.max_tick_us
                     state['control_hz'] = 50
@@ -483,5 +506,6 @@ class Controller:
         if first_error is not None:
             # Keep STOP asserted if any output/resource cleanup failed.
             raise first_error
+        self.stop_guard.close()
         self.stop_pin.init(Pin.IN, Pin.PULL_UP)
         self._closed = True

@@ -2,12 +2,13 @@
 
 Call sample() on the control core every ~20 ms. Only this core should call
 driver methods; UI and HTTP consume controller snapshots. No Python hard IRQ
-is used. Physical STOP and command DMA starvation latch LOW inside PIO.
+is used. Tach capture runs from construction until close(), independently of
+motor power. A shared StopGuard latches physical STOP at the GPIO overrides.
 """
 from array import array
 from machine import Pin, freq as cpu_frequency, mem32
 from rp2 import DMA, PIO, StateMachine
-from time import ticks_diff, ticks_us
+from time import sleep_us, ticks_diff, ticks_us
 from periods import PeriodMeasurements
 from combined_program import (combined_program, pack_command, PIO_CLOCK_HZ,
                               PERIOD_US, LOW_SAMPLE_PC, STOP_PC, STOP_PCS)
@@ -17,8 +18,8 @@ class PioFan:
     # RP2350 io_bank0.h: GPIO CTRL uses OUTOVER[13:12], OEOVER[15:14],
     # INOVER[17:16]. These are deliberately NOT the RP2040 bit positions.
     _GPIO_BASE = 0x40028000
-    _MONITOR_MASK = 0x0003f000
-    _MONITOR_OVERRIDES = (2 << 12) | (3 << 14) | (3 << 16)
+    _OUTOVER_MASK = 3 << 12
+    _OUTOVER_LOW = 2 << 12
     _claimed_sms = set()
     _claimed_pins = set()
     _loaded_blocks = set()
@@ -58,6 +59,7 @@ class PioFan:
         self._gpio_status = self._GPIO_BASE + pwm_pin * 8
         self._gpio_ctrl = self._gpio_status + 4
         self._command = array('I', [pack_command(0)[0]])
+        self._zero_command = self._command[0]
         self._rx = array('I', [0])
         self.measurements = PeriodMeasurements(pulses_per_rev=pulses_per_rev,
                                                window=window, timeout_ms=timeout_ms)
@@ -74,6 +76,8 @@ class PioFan:
         self._initialized = False
         self._dma = None
         self._output = None
+        self.guard = None
+        self.capture_starts = 0
         self._claimed_sms.add(sm_id)
         self._claimed_pins.update(self._pins)
         try:
@@ -84,11 +88,9 @@ class PioFan:
             self._sm.active(0)
             mem32[self._debug] = self._debug_mask
             mem32[self._irq] = self._bit
-            # Boot at zero, including when STOP is already held down.
-            if self._stop_pin.value():
-                self.arm()
-            else:
-                self._stopped = True
+            # Start measuring even when STOP is held. Output remains forced
+            # LOW until an explicitly armed shared guard permits arm().
+            self._start_capture()
         except BaseException:
             self.close()
             raise
@@ -99,44 +101,49 @@ class PioFan:
             self._dma = None
 
     def arm(self):
-        """Explicitly restart at 0%; never reuse a previously queued command."""
+        """Unlock zero-power PWM without resetting a healthy tach sampler."""
         if self._closed:
             raise RuntimeError('Fan is closed')
-        if not self._stop_pin.value():
+        self.stop()
+        if cpu_frequency() != self._cpu_hz:
+            self._fault = 'clock_changed'
+            return False
+        if self.guard is None or self.guard.fired() or not self._stop_pin.value():
+            return False
+        if self._fault is not None or mem32[self._addr] in STOP_PCS:
+            # Explicit START may recover an abnormal halted driver. Normal
+            # STOP/RUN transitions never take this path or reset the window.
+            self._halt_capture()
+            self.measurements.record(0)
+            self._start_capture()
+        # Four queued commands plus the current 100 us cycle may still use
+        # the previous duty. Keep the pad LOW until all have consumed zero.
+        sleep_us(600)
+        if self.guard.fired() or not self._stop_pin.value():
+            return False
+        mem32[self._gpio_ctrl + 0x3000] = self._OUTOVER_MASK  # Atomic CLEAR.
+        if self.guard.fired() or not self._stop_pin.value():
             self.stop()
             return False
-        self.stop()
-        if cpu_frequency() != self._cpu_hz:
-            self._fault = 'clock_changed'
-            return False
-        return self._start_capture(False)
+        self._stopped = False
+        self._monitoring = False
+        return True
 
     def monitor(self):
-        """Capture coasting tach while hardware forces this PWM pad LOW.
-
-        This is an explicit worker operation after stop(), never an automatic
-        PWM rearm. The internal PIO STOP input is this PWM GPIO forced HIGH;
-        its physical output is independently overridden LOW with OE enabled.
-        Only arm() returns the pin to ordinary PWM and the physical STOP input.
-        """
+        """Keep PWM LOW; measurement already runs and is never restarted."""
         if self._closed:
             raise RuntimeError('Fan is closed')
-        if self._fault is not None:
-            return False
-        if self._monitoring:
-            return True
         self.stop()
         if cpu_frequency() != self._cpu_hz:
             self._fault = 'clock_changed'
             return False
-        return self._start_capture(True)
+        return self._fault is None
 
-    def _start_capture(self, passive):
-        """Start at zero with the SM disabled throughout GPIO configuration."""
+    def _start_capture(self):
+        """Initialize once at boot, or after an explicit hardware-error retry."""
         try:
             self._sm.init(combined_program, freq=PIO_CLOCK_HZ,
                           out_base=self._output, set_base=self._output,
-                          in_base=self._output if passive else self._stop_pin,
                           jmp_pin=self._tach)
             self._initialized = True
             self._loaded_blocks.add(self._block)
@@ -151,7 +158,7 @@ class PioFan:
             self._sm.exec(0xa02b)  # mov(x, invert(null))
             self._sm.exec(0xe040 | LOW_SAMPLE_PC)  # set(y, LOW_SAMPLE_PC)
             self._sm.exec(0xa0c2)  # mov(isr, y)
-            self._command[0] = pack_command(0)[0]
+            self._command[0] = self._zero_command
             for _ in range(4):
                 self._sm.put(self._command[0])
             self._dma = DMA()
@@ -168,21 +175,14 @@ class PioFan:
             self._first = True
             self._last_poll_us = ticks_us()
             self._fault = None
-            if passive:
-                # MicroPython v1.29 rp2_pio.c asm_pio_init_gpio sets OUT_LOW
-                # before remuxing, but gpio_set_function clears overrides.
-                # Apply these AFTER init and BEFORE active(1); no GPIO init
-                # operation is allowed while the passive SM is running.
-                mem32[self._gpio_ctrl] = ((mem32[self._gpio_ctrl] & ~self._MONITOR_MASK)
-                                         | self._MONITOR_OVERRIDES)
-                if mem32[self._gpio_ctrl] & self._MONITOR_MASK != self._MONITOR_OVERRIDES:
-                    raise RuntimeError('Could not hold passive PWM output LOW')
-            self._stopped = bool(passive)
-            self._monitoring = bool(passive)
+            # init() prepares PIO OUT_LOW before remuxing and clears GPIO
+            # overrides. Force LOW again before the SM ever executes.
+            self.stop()
             self._sm.active(1)
+            self.capture_starts += 1
             return True
         except BaseException:
-            self.stop()
+            self._halt_capture()
             raise
 
     def set_duty(self, percent):
@@ -193,8 +193,10 @@ class PioFan:
             # A stray power request cannot unlock a stopped/disabled output,
             # or reset its ongoing tach measurement.
             return 0.0
-        # Also observe a latched brief button press, even after its release.
-        if self._stopped or mem32[self._addr] in STOP_PCS or not self._stop_pin.value():
+        # The shared guard remains latched after a brief button press.
+        if (self._stopped or self._fault is not None or self.guard is None
+                or self.guard.fired() or mem32[self._addr] in STOP_PCS
+                or not self._stop_pin.value()):
             self.stop()
             return 0.0
         self._command[0] = word  # Aligned, atomic 32-bit update for DMA.
@@ -215,8 +217,8 @@ class PioFan:
         if cpu_frequency() != self._cpu_hz:
             self._fault = 'clock_changed'
             self.stop()
-        if (self._monitoring and
-                mem32[self._gpio_ctrl] & self._MONITOR_MASK != self._MONITOR_OVERRIDES):
+        if (self._monitoring and mem32[self._gpio_ctrl] & self._OUTOVER_MASK
+                != self._OUTOVER_LOW):
             self._fault = 'monitor_output_override_lost'
             self.stop()
         if mem32[self._irq] & self._bit:
@@ -228,19 +230,19 @@ class PioFan:
             self._fault = 'command_stall'
             self.stop()
         if not self._stopped and (mem32[self._addr] in STOP_PCS or
-                                   not self._stop_pin.value()):
+                not self._stop_pin.value() or self.guard is None or self.guard.fired()):
             self.stop()
         overflow = bool(debug & self._bit)
         if overflow:
             self._overflows += 1
-        reset = overflow or gap < 0 or gap >= self._timeout_us
+        reset = overflow or gap < 0 or gap >= self._timeout_us or self._fault is not None
         if reset:
             self.measurements.record(0)
             self._first = True
             # Bound the read to a snapshot: new periods can arrive concurrently.
             for _ in range(self._sm.rx_fifo()):
                 self._sm.get(self._rx)
-        elif not self._stopped or self._monitoring:
+        else:
             for _ in range(self._sm.rx_fifo()):
                 self._sm.get(self._rx)
                 cycles = self._rx[0]
@@ -251,46 +253,45 @@ class PioFan:
                 else:
                     self.measurements.record(0)
                     self._first = True
-        else:
-            # stop() halts capture, but already-measured RPM remains valid
-            # until its timestamp expires. Never label a coasting shaft zero
-            # merely because its power output was stopped.
-            for _ in range(self._sm.rx_fifo()):
-                self._sm.get(self._rx)
         mem32[self._debug] = debug & self._debug_mask
         result = self.measurements.sample()
         result.update(duty=self._duty, stopped=self._stopped,
                       monitoring=self._monitoring,
                       fault=self._fault, overflow=overflow,
-                      overflows=self._overflows)
+                      overflows=self._overflows, capture_starts=self.capture_starts)
         return result
 
     def stop(self):
-        """Drive LOW and halt capture; only arm() can restore PWM output."""
+        """Latch active LOW without touching SM, DMA, FIFO or period window."""
         if self._closed:
             return
         self._duty = 0.0
         self._stopped = True
-        self._monitoring = False
-        self._command[0] = pack_command(0)[0]
-        # SIO takes the pad LOW before any DMA/resource cleanup can block.
+        self._monitoring = True
+        # Establish OUTOVER=10 even if a detected configuration error changed
+        # it to INVERT=01. This always writes LOW, so concurrent guard SETs
+        # cannot be undone. Normal operation uses only NORMAL=00 and LOW=10.
+        mem32[self._gpio_ctrl] = ((mem32[self._gpio_ctrl] & ~self._OUTOVER_MASK)
+                                 | self._OUTOVER_LOW)
+        self._command[0] = self._zero_command
+
+    def _halt_capture(self):
+        """Shutdown/abnormal recovery only; normal stop() never calls this."""
+        self.stop()
         try:
-            if self._output is not None:
-                self._output.init(Pin.OUT, value=0)
+            if self._sm is not None:
+                self._sm.active(0)
         finally:
             try:
+                # Once the SM is disabled it is safe to remux to SIO LOW.
+                if self._output is not None:
+                    self._output.init(Pin.OUT, value=0)
                 if self._sm is not None:
-                    self._sm.active(0)
                     if self._initialized:
                         self._sm.exec(0xe000)  # set(pins, 0)
                         self._sm.exec(STOP_PC)  # encoded unconditional JMP
             finally:
-                try:
-                    self._close_dma()
-                finally:
-                    if self._fault is not None:
-                        self.measurements.record(0)
-                    self._first = True
+                self._close_dma()
 
     def pwm_is_low(self):
         """Check active LOW at the raw pad, unaffected by input overrides."""
@@ -302,7 +303,7 @@ class PioFan:
         if self._closed:
             return
         try:
-            self.stop()
+            self._halt_capture()
         finally:
             self._closed = True
             self._claimed_sms.discard(self._sm_id)

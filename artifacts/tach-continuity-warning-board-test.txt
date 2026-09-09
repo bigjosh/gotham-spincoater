@@ -1,0 +1,4 @@
+Project Pico 8792b44d9c11021d on COM7
+CORE1_WARNING_RECOVERY_OK warning appeared and cleared during same run
+SIX_DRIVERS_STAY_ARMED_OK all PWM LOW throughout; no channel excluded
+RPM_WARNING_RUNTIME_BOARD_OK saved files untouched; no positive-power commands

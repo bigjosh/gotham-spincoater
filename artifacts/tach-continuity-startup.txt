@@ -1,0 +1,9 @@
+Project Pico 8792b44d9c11021d on COM7
+TOUCH_READY {'rotation': 1, 'product_id': '911', 'raw_resolution': (320, 480), 'last_raw': None, 'armed': False, 'last_error': None, 'error_count': 0, 'address': 93, 'firmware_version': 4192}
+GOTHAM_READY SSID=Gotham Spinner IP=192.168.4.1 CHANNELS=(0, 1, 2, 3, 4, 5) PWM=PIO10kHz CONTROL=CORE1/50Hz
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=1ms message=Ready
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=1ms message=Ready
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=1ms message=Ready
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=1ms message=Ready
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=1ms message=Ready
+SPIN state=IDLE step=0 target=0.0 #0:0/0% #1:0/0% #2:0/0% #3:0/0% #4:0/0% #5:0/0% lag=1ms message=Ready

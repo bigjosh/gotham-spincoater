@@ -93,7 +93,7 @@ class EngineTests(unittest.TestCase):
         engine.configure_settings(settings)
         self.assertEqual(engine.snapshot()['fans'][0]['display_rpm'], 80)
         engine.set_enabled((1,))
-        self.assertFalse(engine.snapshot()['fans'][0]['valid'])
+        self.assertTrue(engine.snapshot()['fans'][0]['valid'])
         engine.update(40, {0: reading(80), 1: reading(150)})
         self.assertEqual(engine.snapshot()['fans'][0]['display_rpm'], 80)
         self.assertFalse(engine.snapshot()['fans'][0]['enabled'])
@@ -137,7 +137,8 @@ class EngineTests(unittest.TestCase):
         engine.set_enabled((0,))
         self.assertEqual(engine.enabled, (0,))
         self.assertEqual(engine.duties, [0] * 6)
-        self.assertFalse(engine.snapshot()['fans'][2]['valid'])
+        self.assertTrue(engine.snapshot()['fans'][2]['valid'])
+        self.assertEqual(engine.snapshot()['fans'][2]['display_rpm'], 1000)
         self.assertEqual(engine.snapshot()['warning_count'], 0)
 
     def test_invalid_selection_preserves_previous_selection(self):
@@ -398,22 +399,71 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(engine.participating, (0, 1))
         self.assertEqual(engine.snapshot()['warning_count'], 0)
 
-    def test_zero_target_uses_display_threshold_instead_of_seeker_tolerance(self):
+    def test_zero_target_uses_seeker_tolerance_and_ignores_display_threshold(self):
         engine = self.make(recipe=profile(rpm=0), rpm_warning_delay_s=0, tolerance_rpm=100)
         engine.update(20, {0: reading(60)})
-        self.assertTrue(engine.snapshot()['fans'][0]['warning'])
+        self.assertFalse(engine.snapshot()['fans'][0]['warning'])
         self.assertIsNone(engine.snapshot()['fans'][0]['error_percent'])
-        engine.update(40, {0: reading(59.9)})
+        engine.update(40, {0: reading(100)})
         self.assertFalse(engine.snapshot()['fans'][0]['warning'])
         self.assertTrue(engine.snapshot()['fans'][0]['in_bounds'])
+        engine.update(60, {0: reading(101)})
+        self.assertTrue(engine.snapshot()['fans'][0]['warning'])
 
-    def test_zero_threshold_only_accepts_measured_exact_zero_at_zero_target(self):
+    def test_zero_display_threshold_does_not_change_zero_target_warning(self):
         engine = self.make(recipe=profile(rpm=0), rpm_warning_delay_s=0, rpm_zero_threshold=0)
         engine.update(20, {0: reading(.1)})
         self.assertEqual(engine.snapshot()['fans'][0]['display_rpm'], .1)
+        self.assertFalse(engine.snapshot()['fans'][0]['warning'])
+        engine.update(30, {0: reading(51)})
         self.assertTrue(engine.snapshot()['fans'][0]['warning'])
         engine.update(40, {0: reading(0)})
         self.assertFalse(engine.snapshot()['fans'][0]['warning'])
+
+    def test_high_display_threshold_cannot_turn_spinning_fan_into_in_bounds_zero(self):
+        engine = self.make(recipe=profile(rpm=0), rpm_warning_delay_s=0, rpm_zero_threshold=500)
+        engine.update(20, {0: reading(100)})
+        self.assertEqual(engine.snapshot()['fans'][0]['display_rpm'], 0)
+        self.assertTrue(engine.snapshot()['fans'][0]['warning'])
+
+    def test_start_and_selection_preserve_period_diagnostics_without_refreshing_age(self):
+        engine = control.ControlEngine((0,))
+        engine.update(1000, {0: reading(3000, pulses=120, period_us=10000, samples=8, age_ms=200)})
+        engine.set_enabled((1,))
+        self.assertEqual(engine.snapshot()['fans'][0]['display_rpm'], 3000)
+        engine.start(profile(), DEFAULT_SETTINGS, 1050)
+        fan = engine.snapshot()['fans'][0]
+        self.assertEqual((fan['period_us'], fan['samples'], fan['pulses'], fan['raw_rpm']),
+                         (10000, 8, 120, 3000))
+        self.assertEqual(fan['age_ms'], 250)
+        self.assertTrue(fan['valid'])
+        engine.update(1100, {})
+        self.assertEqual(engine.snapshot()['fans'][0]['age_ms'], 300)
+        engine.update(2300, {})
+        fan = engine.snapshot()['fans'][0]
+        self.assertEqual(fan['age_ms'], 1500)
+        self.assertFalse(fan['valid'])
+        self.assertEqual(fan['display_rpm'], 0)
+        self.assertEqual(fan['raw_rpm'], 3000)
+
+    def test_negative_producer_rpm_is_retained_for_diagnosis_but_never_displayed(self):
+        engine = control.ControlEngine((0,))
+        engine.update(20, {0: reading(-123, pulses=12, period_us=-243902.4, samples=8, age_ms=0)})
+        fan = engine.snapshot()['fans'][0]
+        self.assertEqual(fan['raw_rpm'], -123)
+        self.assertEqual(fan['period_us'], -243902.4)
+        self.assertEqual(fan['samples'], 8)
+        self.assertEqual(fan['pulses'], 12)
+        self.assertFalse(fan['valid'])
+        self.assertIsNone(fan['rpm'])
+        self.assertEqual(fan['display_rpm'], 0)
+
+    def test_retained_capture_age_survives_ticks_wrap(self):
+        engine = control.ControlEngine((0,))
+        engine.update((1 << 30) - 100, {0: reading(3000, age_ms=50)})
+        engine.start(profile(), DEFAULT_SETTINGS, 40)
+        self.assertEqual(engine.snapshot()['fans'][0]['age_ms'], 190)
+        self.assertEqual(engine.snapshot()['fans'][0]['display_rpm'], 3000)
 
     def test_unknown_display_zero_does_not_hide_recent_tach_activity_or_driver_error(self):
         engine = self.make(recipe=profile(rpm=0), rpm_warning_delay_s=0)

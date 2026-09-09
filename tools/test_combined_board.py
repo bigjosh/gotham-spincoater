@@ -1,7 +1,7 @@
-"""On-device test on unused GP0/GP1/GP20; run through tools/pico.ps1.
+"""On-device test on unused GP0/GP1; run through tools/pico.ps1.
 
 No wiring needed: the PWM peripheral drives the same GP1 input pad that
-PIO reads. GP20 simulates the STOP button, leaving the kit button untouched.
+PIO reads. The shared GP14 STOP line is asserted LOW and released to input.
 The actual fan on GP18/19 remains at zero power throughout this test.
 """
 import sys
@@ -9,11 +9,14 @@ sys.modules.pop('pio_fan', None)
 from machine import Pin, PWM, time_pulse_us, mem32
 from time import sleep_ms, ticks_ms, ticks_diff
 from pio_fan import PioFan
+from stop_guard import StopGuard
 
-fan = generator = None
+fan = generator = guard = None
 try:
-    fan = PioFan(0, 1, 0, stop_pin=20)
-    stop = Pin(20, Pin.OUT, value=1)
+    fan = PioFan(0, 1, 0, stop_pin=14)
+    guard = StopGuard((fan,))
+    assert guard.arm() and fan.arm()
+    stop = Pin(14, Pin.IN, Pin.PULL_UP)
     generator = PWM(Pin(1), freq=100, duty_u16=32768)
 
     def collect(duration=160):
@@ -49,17 +52,17 @@ try:
 
     fan.set_duty(75)
     sleep_ms(2)
-    stop.value(0)
+    stop.init(Pin.OUT, value=0)
     # No driver/Python servicing while PIO must stop autonomously.
     sleep_ms(20)
     assert Pin(0).value() == 0
-    stop.value(1)
+    stop.init(Pin.IN, Pin.PULL_UP)
     sleep_ms(20)
     assert Pin(0).value() == 0
     value = fan.sample()
-    assert value['stopped'] and not value['valid'], value
+    assert value['stopped'] and value['valid'] and fan._sm.active(), value
     assert fan.set_duty(100) == 0
-    assert fan.arm()
+    assert guard.arm() and fan.arm()
     fan.set_duty(50)
     assert collect()['valid']
     print('STOP latches LOW until explicit arm: OK')
@@ -70,7 +73,7 @@ try:
     value = fan.sample()
     assert value['stopped'] and value['fault'] == 'command_underrun', value
     print('Command DMA starvation latches LOW: OK')
-    assert fan.arm()
+    assert guard.arm() and fan.arm()
     assert collect()['valid']
 
     # Intentionally overflow the four-word period FIFO; old data must be
@@ -84,8 +87,10 @@ try:
 finally:
     if fan is not None:
         fan.close()
+    if guard is not None:
+        guard.close()
     if generator is not None:
         generator.deinit()
     Pin(0, Pin.OUT, value=0)
     Pin(1, Pin.IN)
-    Pin(20, Pin.IN)
+    Pin(14, Pin.IN, Pin.PULL_UP)

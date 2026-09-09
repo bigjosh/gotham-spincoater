@@ -43,6 +43,10 @@ class Memory:
         return self.data.get(address, 0)
 
     def __setitem__(self, address, value):
+        if self.GPIO_BASE + 0x2000 <= address < self.GPIO_BASE + 0x2000 + 30 * 8:
+            return self.__setitem__(address - 0x2000, self[address - 0x2000] | value)
+        if self.GPIO_BASE + 0x3000 <= address < self.GPIO_BASE + 0x3000 + 30 * 8:
+            return self.__setitem__(address - 0x3000, self[address - 0x3000] & ~value)
         if address & 0xfffff in (8, 0x30):
             self.data[address] = self.data.get(address, 0) & ~value
         else:
@@ -194,6 +198,7 @@ class PioFanTests(unittest.TestCase):
         self.clock = 0
         self.frequency = 150000000
         self.fans = []
+        self.sleep_hook = None
         PinStub.levels, PinStub.modes, DMAStub.all, SMStub.all, PIOStub.removed = {}, {}, [], [], []
         PinStub.memory = self.memory
         SMStub.memory = self.memory
@@ -204,6 +209,7 @@ class PioFanTests(unittest.TestCase):
                                             mem32=self.memory),
             'rp2': types.SimpleNamespace(DMA=DMAStub, PIO=PIOStub, StateMachine=SMStub),
             'time': types.SimpleNamespace(ticks_us=lambda: self.clock,
+                                         sleep_us=self.sleep_us,
                                          ticks_diff=lambda a, b: a - b),
             'periods': types.SimpleNamespace(PeriodMeasurements=MeasurementsStub),
             'combined_program': program_module,
@@ -214,9 +220,18 @@ class PioFanTests(unittest.TestCase):
             spec.loader.exec_module(module)
         self.Fan = module.PioFan
 
-    def fan(self, pwm=18, tach=19, sm=0):
+    def sleep_us(self, duration):
+        self.clock += duration
+        if self.sleep_hook is not None:
+            self.sleep_hook(duration)
+
+    def fan(self, pwm=18, tach=19, sm=0, arm=True):
         fan = self.Fan(pwm, tach, sm)
         self.fans.append(fan)
+        fan.guard = types.SimpleNamespace(latched=False)
+        fan.guard.fired = lambda: fan.guard.latched
+        if arm:
+            fan.arm()
         return fan
 
     def real_measurements(self, fan):
@@ -264,25 +279,32 @@ class PioFanTests(unittest.TestCase):
         fan = self.fan()
         fan.set_duty(80)
         dma = fan._dma
-        self.memory.data[fan._addr] = 6  # PIO caught a brief button press.
+        fan.guard.latched = True  # Shared watcher caught a brief button press.
         self.assertEqual(fan.set_duty(90), 0)
-        self.assertTrue(dma.dead)
-        self.assertEqual(PinStub.levels[18], 0)
+        self.assertFalse(dma.dead)
+        self.assertTrue(fan.pwm_is_low())
         self.assertTrue(fan.sample()['stopped'])
         PinStub.levels[14] = 0
         self.assertFalse(fan.arm())
         PinStub.levels[14] = 1
+        self.assertFalse(fan.arm())  # Release alone must not acknowledge latch.
+        fan.guard.latched = False
         self.assertTrue(fan.arm())
         self.assertEqual(fan._duty, 0)
         self.assertEqual(fan._sm.tx, [fan._command[0]] * 4)
         self.assertFalse(fan.sample()['stopped'])
+        self.assertEqual(fan.capture_starts, 1)
+        self.assertIs(fan._dma, dma)
 
     def test_held_stop_at_boot_does_not_execute_unconfigured_pio_pin_writes(self):
         PinStub.levels[14] = 0
         fan = self.fan()
         self.assertTrue(fan.sample()['stopped'])
-        self.assertEqual(fan._sm.inits, 0)
-        self.assertEqual(PinStub.levels[18], 0)
+        self.assertEqual(fan._sm.inits, 1)
+        self.assertTrue(fan._sm.enabled)
+        self.assertTrue(fan.pwm_is_low())
+        fan._sm.rx = [30, 100, 100]
+        self.assertTrue(fan.sample()['valid'])
 
     def test_hardware_command_underrun_flag_stops_and_is_cleared_by_arm(self):
         fan = self.fan()
@@ -348,12 +370,12 @@ class PioFanTests(unittest.TestCase):
         self.assertTrue(fan.monitor())
         self.assertTrue(fan._stopped)
         self.assertTrue(fan._monitoring)
-        self.assertEqual(fan._sm.options['in_base'].number, 18)
+        self.assertNotIn('in_base', fan._sm.options)
         self.assertEqual(fan._sm.options['jmp_pin'].number, 19)
-        self.assertEqual(self.memory[fan._gpio_ctrl] & 0x3f000, 0x3e000)
-        self.assertEqual(fan._sm.activation_states[-1][0] & 0x3f000, 0x3e000)
+        self.assertEqual(self.memory[fan._gpio_ctrl] & 0x3f000, 0x2000)
+        self.assertEqual(fan._sm.activation_states[-1][0] & 0x3f000, 0x2000)
         self.assertTrue(fan.pwm_is_low())
-        self.assertEqual(fan._output.value(), 1)  # Forced peripheral input, not raw pad.
+        self.assertEqual(fan._output.value(), 0)  # No input override is needed now.
         self.assertEqual(self.memory[self.memory.GPIO_BASE + 14 * 8 + 4] & 0x3f000, 0)
         writes = [status for gpio, _, status in self.memory.gpio_writes if gpio == 18]
         self.assertTrue(writes)
@@ -365,10 +387,10 @@ class PioFanTests(unittest.TestCase):
         self.assertTrue(reading['valid'])
         self.assertIsNone(reading['fault'])
 
-    def test_monitor_can_initialize_tach_when_stop_was_already_held_at_boot(self):
+    def test_monitor_keeps_existing_capture_when_stop_was_held_at_boot(self):
         PinStub.levels[14] = 0
         fan = self.fan()
-        self.assertEqual(fan._sm.inits, 0)
+        self.assertEqual(fan._sm.inits, 1)
         self.assertTrue(fan.monitor())
         self.assertEqual(fan._sm.inits, 1)
         self.assertTrue(fan._stopped)
@@ -397,20 +419,20 @@ class PioFanTests(unittest.TestCase):
         self.assertTrue(fan.pwm_is_low())
         self.assertEqual(fan.sample()['duty'], 0)
 
-    def test_stop_is_still_hard_halt_and_preserves_fresh_coasting_measurement(self):
+    def test_stop_keeps_sampler_dma_and_partial_period_capture_alive(self):
         fan = self.fan()
         self.real_measurements(fan)
         fan._sm.rx = [30, 100, 100]
         self.assertEqual(fan.sample()['rpm'], 3000)
         fan.stop()
-        self.assertFalse(fan._sm.enabled)
-        self.assertFalse(fan._monitoring)
-        self.assertIsNone(fan._dma)
+        self.assertTrue(fan._sm.enabled)
+        self.assertTrue(fan._monitoring)
+        self.assertFalse(fan._dma.dead)
         self.assertTrue(fan.pwm_is_low())
         reading = fan.sample()
         self.assertTrue(reading['valid'])
         self.assertEqual(reading['rpm'], 3000)
-        self.clock = 1500000
+        self.clock += 1500000
         self.assertFalse(fan.sample()['valid'])
 
     def test_monitor_reports_new_coasting_periods_without_faking_zero_at_stop(self):
@@ -422,7 +444,7 @@ class PioFanTests(unittest.TestCase):
         self.clock += 20000
         fan.monitor()
         self.assertEqual(fan.sample()['rpm'], 3000)
-        fan._sm.rx = [17] + [200] * 8
+        fan._sm.rx = [200] * 8
         self.clock += 20000
         reading = fan.sample()
         self.assertTrue(reading['valid'])
@@ -431,26 +453,27 @@ class PioFanTests(unittest.TestCase):
         self.assertTrue(reading['stopped'])
         self.assertTrue(fan.pwm_is_low())
 
-    def test_only_explicit_arm_restores_pwm_and_the_physical_stop_input(self):
+    def test_only_explicit_arm_unlocks_pwm_without_resetting_capture(self):
         fan = self.fan()
         fan.monitor()
         PinStub.levels[14] = 0
         self.assertFalse(fan.arm())
-        self.assertFalse(fan._sm.enabled)
+        self.assertTrue(fan._sm.enabled)
         self.assertTrue(fan.pwm_is_low())
         self.assertTrue(fan.monitor())
         PinStub.levels[14] = 1
         self.assertTrue(fan.arm())
         self.assertFalse(fan._monitoring)
         self.assertFalse(fan._stopped)
-        self.assertEqual(fan._sm.options['in_base'].number, 14)
+        self.assertNotIn('in_base', fan._sm.options)
         self.assertEqual(self.memory[fan._gpio_ctrl] & 0x3f000, 0)
         self.assertTrue(fan.pwm_is_low())
         self.assertEqual(fan.set_duty(75), 75)
-        self.memory.data[fan._addr] = 6
+        fan.guard.latched = True
         self.assertTrue(fan.sample()['stopped'])
-        self.assertFalse(fan._sm.enabled)
+        self.assertTrue(fan._sm.enabled)
         self.assertTrue(fan.pwm_is_low())
+        self.assertEqual(fan.capture_starts, 1)
 
     def test_six_passive_channels_reuse_their_existing_program_and_dma_pacing(self):
         pins = ((18, 19), (20, 21), (22, 28), (1, 0), (13, 12), (16, 17))
@@ -473,17 +496,19 @@ class PioFanTests(unittest.TestCase):
         inits = fan._sm.inits
         self.assertFalse(fan.monitor())
         self.assertEqual(fan._sm.inits, inits)
-        self.assertFalse(fan._sm.enabled)
+        # A hardware fault is invalid/parked; monitor never tries to repair it.
         self.assertTrue(fan.pwm_is_low())
         self.assertTrue(fan.arm())
+        self.assertEqual(fan.capture_starts, 2)
 
-    def test_monitor_configuration_exception_stays_active_low_and_releases_dma(self):
+    def test_abnormal_retry_configuration_exception_stays_low_and_releases_dma(self):
         fan = self.fan()
+        self.memory.data[fan._irq] = fan._bit
+        fan.sample()
         fan._sm.fail_init = True
         with self.assertRaisesRegex(RuntimeError, 'init failed'):
-            fan.monitor()
+            fan.arm()
         self.assertFalse(fan._sm.enabled)
-        self.assertFalse(fan._monitoring)
         self.assertIsNone(fan._dma)
         self.assertTrue(fan.pwm_is_low())
         fan._sm.fail_init = False
@@ -495,9 +520,19 @@ class PioFanTests(unittest.TestCase):
         reading = fan.sample()
         self.assertEqual(reading['fault'], 'monitor_output_override_lost')
         self.assertTrue(reading['stopped'])
-        self.assertFalse(reading['monitoring'])
+        self.assertTrue(reading['monitoring'])
         self.assertTrue(fan.pwm_is_low())
-        self.assertFalse(fan._sm.enabled)
+        self.assertTrue(fan._sm.enabled)
+
+    def test_corrupted_invert_override_is_repaired_to_low_not_forced_high(self):
+        fan = self.fan()
+        fan.monitor()
+        self.memory[fan._gpio_ctrl] = ((self.memory[fan._gpio_ctrl] & ~(3 << 12))
+                                      | (1 << 12))
+        reading = fan.sample()
+        self.assertEqual(reading['fault'], 'monitor_output_override_lost')
+        self.assertEqual(self.memory[fan._gpio_ctrl] & (3 << 12), 2 << 12)
+        self.assertTrue(fan.pwm_is_low())
 
     def test_raw_pad_check_rejects_floating_or_externally_high_output(self):
         fan = self.fan()
@@ -509,13 +544,13 @@ class PioFanTests(unittest.TestCase):
         self.assertFalse(fan.pwm_is_low())
         del self.memory.data[fan._gpio_status]
 
-    def test_stop_closes_dma_even_when_injected_instruction_raises(self):
+    def test_close_closes_dma_even_when_injected_instruction_raises(self):
         fan = self.fan()
         dma = fan._dma
         fan.set_duty(75)
         fan._sm.fail_exec = True
         with self.assertRaises(RuntimeError):
-            fan.stop()
+            fan.close()
         self.assertTrue(dma.dead)
         self.assertIsNone(fan._dma)
         self.assertEqual(PinStub.levels[18], 0)
@@ -537,15 +572,56 @@ class PioFanTests(unittest.TestCase):
         fan = self.fan()
         self.assertEqual(fan._sm.execs[:3], [
             official.asm_pio_encode('mov(x, invert(null))', 0),
-            official.asm_pio_encode('set(y, 20)', 0),
+            official.asm_pio_encode('set(y, 17)', 0),
             official.asm_pio_encode('mov(isr, y)', 0)])
         # The real encoder rejects JMP strings. The hardware accepts its
         # numeric opcode directly, so never pass this expression to exec().
         with self.assertRaises(TypeError):
             official.asm_pio_encode('jmp(6)', 0)
-        fan.stop()
+        fan.close()
         self.assertEqual(fan._sm.execs[-2:], [
-            official.asm_pio_encode('set(pins, 0)', 0), 6])
+            official.asm_pio_encode('set(pins, 0)', 0), 3])
+
+    def test_boot_cannot_enable_power_before_shared_guard_is_attached_and_armed(self):
+        fan = self.fan(arm=False)
+        fan.guard = None
+        self.assertFalse(fan.arm())
+        self.assertEqual(fan.set_duty(100), 0)
+        self.assertTrue(fan.pwm_is_low())
+        self.assertEqual(fan.capture_starts, 1)
+
+    def test_arm_drains_old_commands_under_low_override_without_touching_capture(self):
+        fan = self.fan()
+        fan.set_duty(75)
+        self.memory.pio_outputs[18] = 1
+        fan._sm.rx = [30, 100, 100]
+        fan.sample()
+        inits, execs, dma, records = fan._sm.inits, list(fan._sm.execs), fan._dma, list(fan.measurements.records)
+        def while_draining(duration):
+            self.assertGreaterEqual(duration, 500)
+            self.assertTrue(fan.pwm_is_low())
+            self.assertEqual(fan._command[0], fan._zero_command)
+            fan._sm.rx.append(150)  # New complete period during START.
+            self.memory.pio_outputs[18] = 0  # Zero reaches the PIO output.
+        self.sleep_hook = while_draining
+        fan.stop()
+        self.assertTrue(fan.arm())
+        self.assertTrue(fan.pwm_is_low())
+        self.assertEqual(fan._sm.inits, inits)
+        self.assertEqual(fan._sm.execs, execs)
+        self.assertIs(fan._dma, dma)
+        self.assertEqual(fan.measurements.records, records)
+        fan.sample()
+        self.assertEqual(fan.measurements.records, records + [15000])
+
+    def test_guard_firing_during_arm_never_unlocks_output(self):
+        fan = self.fan()
+        self.memory.pio_outputs[18] = 1
+        self.sleep_hook = lambda duration: setattr(fan.guard, 'latched', True)
+        self.assertFalse(fan.arm())
+        self.assertTrue(fan.pwm_is_low())
+        self.assertEqual(fan.set_duty(100), 0)
+        self.assertEqual(fan.capture_starts, 1)
 
 
 if __name__ == '__main__':

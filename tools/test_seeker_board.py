@@ -8,6 +8,7 @@ sys.modules.pop('control', None)
 from control import ControlEngine
 from recipes import DEFAULT_SETTINGS
 from pio_fan import PioFan
+from stop_guard import StopGuard
 from time import ticks_ms, ticks_diff, sleep_ms
 
 print('SEEK_GAIN', ControlEngine.SEEK_GAIN)
@@ -22,8 +23,12 @@ profile = {'name': 'Bench speed jumps', 'steps': [
     {'rpm': 0, 'slew_s': 4, 'dwell_s': 0},
 ]}
 fan = PioFan(18, 19, 0, stop_pin=14)
+guard = None
 engine = ControlEngine((0,))
 try:
+    guard = StopGuard((fan,))
+    if not guard.arm() or not fan.arm():
+        raise RuntimeError('STOP prevented the bench test from arming')
     began = ticks_ms()
     report = -1000
     previous = 0.0
@@ -53,3 +58,5 @@ try:
     print('SEEKER_BOARD_PASS')
 finally:
     fan.close()
+    if guard is not None:
+        guard.close()

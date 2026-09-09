@@ -1,0 +1,9 @@
+Project Pico 8792b44d9c11021d on COM7
+Verified upload: combined_program.py (4650 bytes)
+Verified upload: control.py (17464 bytes)
+Verified upload: main.py (4959 bytes)
+Verified upload: periods.py (4564 bytes)
+Verified upload: pio_fan.py (14137 bytes)
+Verified upload: runtime.py (22936 bytes)
+Verified upload: stop_guard.py (4948 bytes)
+Application files installed

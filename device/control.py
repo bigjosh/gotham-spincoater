@@ -70,9 +70,9 @@ class ControlEngine:
         self._last_ms = now_ms
         self._elapsed_ms = 0
         self._seen_tach = [False] * 6
-        self._last_pulse_ms = [now_ms] * 6
-        self._pulse_counts = [None] * 6
-        self._readings = [{} for _ in range(6)]
+        for channel in range(6):
+            if self._last_pulse_ms[channel] is None:
+                self._last_pulse_ms[channel] = now_ms
         self._standstill_assumed = False
         self._blind_coast = False
         self._clear_warnings()
@@ -85,9 +85,15 @@ class ControlEngine:
         """Control-core-only idle reconfiguration; never starts an output."""
         if self.running:
             raise RuntimeError("Stop the recipe before changing fans")
-        # Validate before replacing any current state. Disabled channels lose
-        # stale measurements, duty and settling history at the same boundary.
+        # Selection resets the recipe/control state, never the independent
+        # tach stream. Keep its original timestamps so stale data still ages.
+        readings, pulse_times = self._readings, self._last_pulse_ms
+        pulse_counts = self._pulse_counts
+        now_ms, last_ms = self._now_ms, self._last_ms
         self.__init__(enabled, self._settings)
+        self._readings, self._last_pulse_ms = readings, pulse_times
+        self._pulse_counts = pulse_counts
+        self._now_ms, self._last_ms = now_ms, last_ms
         return self.snapshot()
 
     def configure_settings(self, settings):
@@ -117,9 +123,9 @@ class ControlEngine:
     def _zero_in_bounds(self, channel, reading):
         if reading.get("driver_error"):
             return False
-        if reading.get("valid", False):
+        if self._reading_valid(reading):
             rpm = reading["rpm"]
-            return rpm == 0 or rpm < self._settings["rpm_zero_threshold"]
+            return rpm <= self._settings["tolerance_rpm"]
         quiet_since = self._last_pulse_ms[channel]
         quiet = (quiet_since is not None
                  and ticks_diff(self._now_ms, quiet_since) >= self.QUIET_S * 1000)
@@ -137,7 +143,7 @@ class ControlEngine:
             if target == 0:
                 in_bounds = self._zero_in_bounds(channel, reading)
             else:
-                if reading.get("valid", False):
+                if self._reading_valid(reading):
                     error_percent = abs(reading["rpm"] - target) * 100.0 / target
                     in_bounds = error_percent <= self._settings["rpm_warning_percent"]
                 else:
@@ -207,10 +213,16 @@ class ControlEngine:
     def _capture(self, readings):
         emergency = False
         for channel in range(6):
-            reading = readings.get(channel, {})
+            if channel not in readings:
+                continue
+            reading = readings[channel]
             if self._last_pulse_ms[channel] is None:
                 self._last_pulse_ms[channel] = self._now_ms
             rpm = reading.get("rpm")
+            raw_rpm = reading.get("raw_rpm", rpm)
+            if (isinstance(raw_rpm, bool) or not isinstance(raw_rpm, (int, float))
+                    or not -float("inf") < raw_rpm < float("inf")):
+                raw_rpm = None
             valid = (reading.get("valid") is True
                      and not reading.get("driver_error") and not reading.get("fault")
                      and not isinstance(rpm, bool)
@@ -224,12 +236,18 @@ class ControlEngine:
                 valid = False
                 self._last_pulse_ms[channel] = self._now_ms
             age = reading.get("age_ms")
-            if age is not None and (not isinstance(age, (int, float)) or age < 0
+            if age is not None and (isinstance(age, bool) or not isinstance(age, (int, float))
+                                    or not 0 <= age < float("inf")
                                     or age >= self.QUIET_S * 1000):
                 valid = False
             self._readings[channel] = {
                 "rpm": float(rpm) if valid else None,
+                "raw_rpm": raw_rpm,
                 "valid": bool(valid), "age_ms": age,
+                "captured_ms": self._now_ms,
+                "period_us": reading.get("period_us"),
+                "samples": reading.get("samples", 0),
+                "pulses": reading.get("pulses", 0),
                 "driver_error": reading.get("driver_error") or reading.get("fault"),
             }
             pulses = reading.get("pulses")
@@ -246,13 +264,29 @@ class ControlEngine:
                 emergency = emergency or bool(reading.get("stopped", False))
         return emergency
 
+    def _reading_age(self, reading):
+        age = reading.get("age_ms")
+        if not isinstance(age, (int, float)) or isinstance(age, bool) or not 0 <= age < float("inf"):
+            return None
+        captured = reading.get("captured_ms", self._now_ms)
+        return age + max(0, ticks_diff(self._now_ms, captured))
+
+    def _reading_valid(self, reading):
+        if not reading.get("valid", False):
+            return False
+        captured = reading.get("captured_ms", self._now_ms)
+        age = self._reading_age(reading)
+        if age is None:
+            age = max(0, ticks_diff(self._now_ms, captured))
+        return age < self.QUIET_S * 1000
+
     def _regulate(self, control_dt):
         target = self.target_rpm
         self._standstill_assumed = False
         self._blind_coast = False
         for channel in self.participating:
             reading = self._readings[channel]
-            valid = reading["valid"]
+            valid = self._reading_valid(reading)
             if reading.get("driver_error"):
                 self.duties[channel] = 0.0
                 continue
@@ -321,13 +355,18 @@ class ControlEngine:
         fans = []
         for channel in range(6):
             reading = self._readings[channel]
-            valid = reading.get("valid", False)
+            valid = self._reading_valid(reading)
             rpm = reading.get("rpm") if valid else None
             display_rpm = (rpm if valid and rpm >= self._settings["rpm_zero_threshold"] else 0)
             participating = channel in self.participating
             target = self.target_rpm if participating else 0
             fans.append({"enabled": channel in self.enabled, "rpm": rpm,
                          "display_rpm": display_rpm,
+                         "raw_rpm": reading.get("raw_rpm"),
+                         "period_us": reading.get("period_us"),
+                         "samples": reading.get("samples", 0),
+                         "pulses": reading.get("pulses", 0),
+                         "age_ms": self._reading_age(reading),
                          "valid": valid, "duty": self.duties[channel],
                          "participating": participating,
                          "warning": self._warnings[channel],

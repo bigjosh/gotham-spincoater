@@ -38,13 +38,13 @@ def load_program():
         def decorate(fn):
             g = fn.__globals__
             for name in ('x', 'y', 'pins', 'pc', 'isr', 'osr', 'null', 'status',
-                         'not_y', 'x_dec', 'y_dec', 'pin', 'block', 'noblock'):
+                         'not_y', 'x_dec', 'y_dec', 'pin', 'gpio', 'block', 'noblock'):
                 g[name] = name
             def emit(op, *args):
                 item = Instruction(op, args)
                 instructions.append(item)
                 return item
-            for op in ('mov', 'out', 'jmp', 'set', 'pull', 'push', 'irq'):
+            for op in ('mov', 'out', 'jmp', 'set', 'pull', 'push', 'irq', 'wait'):
                 g[op] = lambda *a, _op=op: emit(_op, *a)
             g['label'] = lambda label: labels.__setitem__(label, len(instructions))
             g['wrap_target'] = lambda: markers.__setitem__('bottom', len(instructions))
@@ -81,7 +81,10 @@ def load_program():
         elif op == 'pull':
             value = 0x80a0
         elif op == 'push':
-            value = 0x8000
+            value = 0x8020 if args[0] == 'block' else 0x8000
+        elif op == 'wait':
+            assert args[1] == 'gpio'
+            value = 0x2000 | (args[0] << 7) | args[2]
         elif op == 'irq':
             value = 0xc010 | args[0][1]
         else:
@@ -95,7 +98,8 @@ class Interpreter:
         self.module, self.code, self.labels, self.markers = load_program()
         self.pc = 0
         self.cycle = 0
-        self.reg = {'x': 0xffffffff, 'y': 20, 'osr': 0, 'isr': 20}
+        self.reg = {'x': 0xffffffff, 'y': self.module.LOW_SAMPLE_PC,
+                    'osr': 0, 'isr': self.module.LOW_SAMPLE_PC}
         self.output = 0
         self.outputs = []
         self.samples = []
@@ -129,6 +133,11 @@ class Interpreter:
                     raise AssertionError(condition)
                 if take:
                     next_pc = target
+            elif op == 1:
+                self.assert_wait_gpio(word)
+                level = 0 if self.stop_input(self.cycle) else 1
+                if level != ((word >> 7) & 1):
+                    next_pc = self.pc
             elif op == 3:
                 destination, count = (word >> 5) & 7, word & 31
                 value = self.reg['osr'] & ((1 << count) - 1)
@@ -186,13 +195,19 @@ class Interpreter:
             self.cycle += 1 + delay
         return self
 
+    @staticmethod
+    def assert_wait_gpio(word):
+        assert (word >> 5) & 3 == 0
+        assert word & 31 == 14
+
 
 class CombinedProgramTests(unittest.TestCase):
     def test_exactly_32_words_and_computed_jump_addresses(self):
         module, words, labels, markers = load_program()
         self.assertEqual(len(words), 32)
-        self.assertEqual(markers, {'bottom': 0, 'top': 30})
+        self.assertEqual(markers, {'bottom': 0, 'top': 27})
         self.assertEqual(labels['stop'], module.STOP_PC)
+        self.assertEqual(labels['guard'], module.GUARD_PC)
         self.assertEqual(words[module.LOW_SAMPLE_PC] >> 5 & 7, 6)
         self.assertEqual(words[module.HIGH_SAMPLE_PC] >> 5 & 7, 6)
 
@@ -227,8 +242,8 @@ class CombinedProgramTests(unittest.TestCase):
             with self.subTest(duty=duty):
                 machine = Interpreter(module.pack_command(duty)[0]).run(6000)
                 for sample, _ in machine.samples[1:-1]:
-                    before = max(c for c, value, pc in machine.outputs if pc == 15 and c < sample)
-                    after = min(c for c, value, pc in machine.outputs if pc == 12 and c > sample)
+                    before = max(c for c, value, pc in machine.outputs if pc == 12 and c < sample)
+                    after = min(c for c, value, pc in machine.outputs if pc == 9 and c > sample)
                     self.assertLessEqual(abs((sample - before) - (after - sample)), 1)
                     self.assertGreaterEqual(min(sample - before, after - sample), 250)
 
@@ -240,8 +255,8 @@ class CombinedProgramTests(unittest.TestCase):
                 if duty in (0, 100):
                     self.assertEqual(set(v for _, v, _ in machine.outputs), {int(duty == 100)})
                 else:
-                    short_starts = [c for c, _, pc in machine.outputs if pc == 12]
-                    short_ends = [c for c, _, pc in machine.outputs if pc == 15]
+                    short_starts = [c for c, _, pc in machine.outputs if pc == 9]
+                    short_ends = [c for c, _, pc in machine.outputs if pc == 12]
                     self.assertEqual([e - s for s, e in zip(short_starts, short_ends)],
                                      [round(min(duty, 100 - duty) * 10)] * len(short_starts))
 
@@ -260,24 +275,33 @@ class CombinedProgramTests(unittest.TestCase):
             def tach(clock):
                 logical = clock // 50000 % 2
                 # Inject 2 us glitches after either physical PWM transition.
-                edge = max((c for c, _, pc in machine.outputs if pc in (12, 15)), default=-100)
+                edge = max((c for c, _, pc in machine.outputs if pc in (9, 12)), default=-100)
                 return 1 - logical if clock - edge < 20 else logical
             machine.tach = tach
             machine.run(510000)
             self.assertEqual([p for _, p in machine.periods[1:]],
                              [100] * (len(machine.periods) - 1))
 
-    def test_physical_stop_at_every_phase_latches_even_after_release(self):
+    def test_shared_stop_watcher_latches_one_dma_token_after_one_clock_press(self):
+        module = load_program()[0]
+        for press in range(0, 2000, 61):
+            machine = Interpreter(None, stop=lambda c, p=press: p <= c < p + 1)
+            machine.pc = module.GUARD_PC
+            machine.reg['isr'] = 1 << 13
+            machine.run(4500)
+            self.assertEqual(machine.periods, [(press + 1, 1 << 13)])
+            self.assertIn(machine.pc, module.GUARD_FIRED_PCS)
+            self.assertFalse(machine.outputs)
+            self.assertFalse(machine.fault)
+
+    def test_stop_input_cannot_interrupt_continuous_tach_sampler(self):
         module = load_program()[0]
         for duty in (0, 25, 50, 75, 100):
-            for press in range(1000, 2000, 61):
-                machine = Interpreter(module.pack_command(duty)[0],
-                                      stop=lambda c, p=press: p <= c < p + 1100).run(4500)
-                self.assertIsNotNone(machine.stop_at)
-                self.assertLessEqual(machine.stop_at - press, 1003)
-                self.assertEqual(machine.output, 0)
-                self.assertIn(machine.pc, module.STOP_PCS)
-                self.assertFalse(machine.fault)
+            machine = Interpreter(module.pack_command(duty)[0],
+                                  tach=lambda c: c // 50000 % 2,
+                                  stop=lambda c: 100000 <= c < 200000).run(510000)
+            self.assertEqual([p for _, p in machine.periods[1:]], [100] * 4)
+            self.assertIsNone(machine.stop_at)
 
     def test_dma_empty_fifo_faults_low_without_reaching_blocking_pull(self):
         module = load_program()[0]

@@ -77,6 +77,7 @@ class FakeFan:
         self.fault = None
         self.rpm = 0
         self.valid = False
+        self.period_us = None
         self.samples = 0
         self.commands = []
         self.on_close = None
@@ -107,6 +108,7 @@ class FakeFan:
             self.on_sample()
         return {"rpm": self.rpm, "valid": self.valid,
                 "pulses": self.samples if self.valid else 0,
+                "period_us": self.period_us, "samples": 8 if self.valid else 0, "age_ms": 0,
                 "stopped": self.stopped, "fault": self.fault}
 
     def set_duty(self, value):
@@ -147,6 +149,47 @@ class ButtonScript:
         self.press = False
 
 
+class FakeStopGuard:
+    def __init__(self, fans, stop_pin=14, sm_id=11):
+        self.fans = tuple(fans)
+        self.stop_pin = stop_pin
+        self.arms = 0
+        self.armed = False
+        self.latched = True
+        self.closed = False
+        self.on_arm = None
+        self.on_close = None
+        for fan in self.fans:
+            fan.guard = self
+
+    def fire(self):
+        self.latched = True
+        for fan in self.fans:
+            fan.stopped = True
+            fan.output = 0
+
+    def fired(self):
+        if not FakePin.levels.get(self.stop_pin, 1):
+            self.fire()
+        return not self.armed or self.latched
+
+    def arm(self):
+        self.arms += 1
+        for fan in self.fans:
+            fan.stop()
+        self.latched = False
+        self.armed = True
+        if self.on_arm:
+            self.on_arm()
+        return not self.fired()
+
+    def close(self):
+        if self.on_close:
+            self.on_close()
+        self.armed = False
+        self.closed = True
+
+
 class RuntimeTests(unittest.TestCase):
     def setUp(self):
         self.clock = FakeClock()
@@ -176,9 +219,12 @@ class RuntimeTests(unittest.TestCase):
         machine.Pin = FakePin
         pio_fan = types.ModuleType("pio_fan")
         pio_fan.PioFan = FakeFan
+        stop_guard = types.ModuleType("stop_guard")
+        stop_guard.StopGuard = FakeStopGuard
         self.modules = patch.dict(sys.modules, {
             "time": time_module, "_thread": thread_module, "config": config,
             "machine": machine, "pio_fan": pio_fan,
+            "stop_guard": stop_guard,
         })
         self.modules.start()
         self.paths = patch.object(sys, "path", [str(ROOT / "device")] + sys.path)
@@ -324,7 +370,9 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(list(controller.fans), [0, 1, 2, 3])
         self.assertTrue(all(fan.output == 0 for fan in controller.fans.values()))
         self.assertTrue(all(controller.fans[i].stopped for i in (1, 2, 3)))
-        self.assertFalse(controller.fans[0].stopped)
+        self.assertTrue(controller.fans[0].stopped)
+        self.assertFalse(controller.stop_guard.fired())
+        self.assertEqual(controller.stop_guard.arms, 1)
         self.assertEqual([f['available'] for f in controller.snapshot()['fans']],
                          [True, True, True, True, False, False])
         self.assertFalse(controller.snapshot()["running"])
@@ -548,6 +596,58 @@ class RuntimeTests(unittest.TestCase):
         self.assertFalse(controller.snapshot()['running'])
         self.assertTrue(all(fan.stopped for fan in controller.fans.values()))
 
+    def test_guard_is_rearmed_before_fans_and_latched_stop_after_last_arm_cancels_start(self):
+        self.config.ENABLED_CHANNELS = (0, 1)
+        controller = self.controller()
+        observed = []
+        def first_arm():
+            observed.append((controller.stop_guard.arms, controller.stop_guard.fired()))
+        def last_arm():
+            # The physical button has already released. The hardware latch
+            # survives even if this arm operation then clears its output LOW.
+            controller.stop_guard.fire()
+        controller.fans[0].on_arm = first_arm
+        controller.fans[1].on_arm = last_arm
+        self.one_tick(controller)
+        self.assertEqual(observed, [(2, False)])
+        self.assertEqual(FakePin.levels[14], 1)
+        self.assertTrue(controller.stop_guard.fired())
+        self.assertFalse(controller.snapshot()['running'])
+        self.assertTrue(all(fan.commands == [] and fan.output == 0 for fan in controller.fans.values()))
+
+    def test_fresh_start_rearms_a_released_guard_latch_before_power_commands(self):
+        controller = self.controller()
+        controller.stop_guard.fire()
+        self.one_tick(controller, start=False)
+        self.assertFalse(controller.snapshot()['running'])
+        controller.closing = controller.finished = False
+        self.one_tick(controller, start=True)
+        self.assertTrue(controller.snapshot()['running'])
+        self.assertFalse(controller.stop_guard.fired())
+        self.assertEqual(controller.stop_guard.arms, 2)
+        self.assertEqual(controller.fans[0].arms, 1)
+
+    def test_guard_firing_during_engine_start_prevents_every_power_command(self):
+        controller = self.controller()
+        original_start = controller.engine.start
+        def fire_after_start(*args):
+            result = original_start(*args)
+            controller.stop_guard.fire()
+            return result
+        controller.engine.start = fire_after_start
+        self.one_tick(controller)
+        self.assertFalse(controller.snapshot()['running'])
+        self.assertEqual(controller.fans[0].commands, [])
+
+    def test_guard_firing_between_power_commands_stops_the_remaining_channels(self):
+        self.config.ENABLED_CHANNELS = (0, 1)
+        controller = self.controller()
+        controller.fans[0].on_set_duty = controller.stop_guard.fire
+        self.one_tick(controller)
+        self.assertFalse(controller.snapshot()['running'])
+        self.assertEqual(controller.fans[1].commands, [])
+        self.assertTrue(all(fan.output == 0 for fan in controller.fans.values()))
+
     def test_stop_pressed_during_fault_sample_still_stops_healthy_fan(self):
         self.config.ENABLED_CHANNELS = (0, 1)
         controller = self.controller()
@@ -623,12 +723,13 @@ class RuntimeTests(unittest.TestCase):
         controller = self.controller()
         fan = controller.fans[0]
         controller.started = True
+        stops_before = fan.stops
         controller.request_shutdown('Heartbeat missed')
         self.assertTrue(controller.closing)
         self.assertEqual(controller.error, 'Heartbeat missed')
         self.assertEqual(FakePin.modes[14], FakePin.OUT)
         self.assertEqual(FakePin.levels[14], 0)
-        self.assertEqual(fan.stops, 0)
+        self.assertEqual(fan.stops, stops_before)
         self.assertFalse(fan.closed)
         controller.finished = True  # Permit tearDown cleanup after acknowledgement.
 
@@ -665,11 +766,13 @@ class RuntimeTests(unittest.TestCase):
         controller = self.controller()
         controller.started = True
         fan = controller.fans[0]
+        stops_before = fan.stops
         with self.assertRaisesRegex(RuntimeError, 'hardware STOP held LOW'):
             controller.close()
         self.assertEqual(self.clock.now, 2000)
-        self.assertEqual(fan.stops, 0)
+        self.assertEqual(fan.stops, stops_before)
         self.assertFalse(fan.closed)
+        self.assertFalse(controller.stop_guard.closed)
         self.assertEqual(FakePin.modes[14], FakePin.OUT)
         self.assertEqual(FakePin.levels[14], 0)
         controller.finished = True
@@ -684,10 +787,27 @@ class RuntimeTests(unittest.TestCase):
         observed = []
         for fan in controller.fans.values():
             fan.on_close = lambda: observed.append((FakePin.modes[14], FakePin.levels[14]))
+        guard_closed_after_fans = []
+        controller.stop_guard.on_close = lambda: guard_closed_after_fans.append(
+            (all(fan.closed for fan in controller.fans.values()), FakePin.levels[14]))
         controller.close()
         self.assertEqual(observed, [(FakePin.OUT, 0)] * 4)
         self.assertTrue(all(fan.closed for fan in controller.fans.values()))
+        self.assertEqual(guard_closed_after_fans, [(True, 0)])
+        self.assertTrue(controller.stop_guard.closed)
         self.assertEqual(FakePin.modes[14], FakePin.IN)
+
+    def test_failed_guard_close_keeps_shared_stop_asserted(self):
+        controller = self.controller()
+        def fail():
+            raise RuntimeError('guard close failed')
+        controller.stop_guard.on_close = fail
+        with self.assertRaisesRegex(RuntimeError, 'guard close failed'):
+            controller.close()
+        self.assertTrue(all(fan.closed for fan in controller.fans.values()))
+        self.assertEqual(FakePin.levels[14], 0)
+        self.assertEqual(FakePin.modes[14], FakePin.OUT)
+        controller.stop_guard.on_close = None
 
     def test_failed_close_keeps_stop_asserted_and_attempts_remaining_outputs(self):
         self.config.ENABLED_CHANNELS = (0, 1)
@@ -698,6 +818,7 @@ class RuntimeTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'close failure'):
             controller.close()
         self.assertTrue(controller.fans[1].closed)
+        self.assertFalse(controller.stop_guard.closed)
         self.assertEqual(FakePin.modes[14], FakePin.OUT)
         self.assertEqual(FakePin.levels[14], 0)
         controller.fans[0].on_close = None
@@ -794,6 +915,7 @@ class RuntimeTests(unittest.TestCase):
     def test_threshold_is_loaded_before_start_and_worker_applies_idle_save_before_return(self):
         self.book.data['settings']['rpm_zero_threshold'] = 100
         controller = self.controller()
+        controller.fans[0].rpm, controller.fans[0].valid = 80, True
         controller.engine.update(0, {0: {'rpm': 80, 'valid': True}})
         controller._snapshot = controller._state()
         self.assertEqual(controller.snapshot()['fans'][0]['display_rpm'], 0)
@@ -817,6 +939,38 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(phases, ['pause', 'save', 'apply'])
         self.assertEqual(controller.snapshot()['fans'][0]['display_rpm'], 80)
         self.assertTrue(all(fan.arms == 0 for fan in controller.fans.values()))
+
+    def test_edit_loop_keeps_sampling_and_publishing_periods_without_power_commands(self):
+        controller = self.controller()
+        controller.fans[0].rpm, controller.fans[0].valid = 3000, True
+        controller.fans[0].period_us = 10000
+        controller._begin_edit()
+        first = controller.snapshot()['fans'][0]
+        self.assertEqual((first['raw_rpm'], first['period_us'], first['samples']), (3000, 10000, 8))
+        controller.fans[0].rpm = 2400
+        controller.fans[0].period_us = 12500
+        self.clock.now = 20
+        controller._service_edit()
+        second = controller.snapshot()['fans'][0]
+        self.assertEqual((second['raw_rpm'], second['period_us']), (2400, 12500))
+        self.assertGreater(second['pulses'], first['pulses'])
+        self.assertTrue(all(fan.arms == 0 and fan.commands == [] for fan in controller.fans.values()))
+        controller._end_edit()
+
+    def test_edit_sampling_does_not_erase_a_new_pending_selection(self):
+        controller = self.controller()
+        controller.editing = True
+        def queue_selection():
+            controller.fans[0].on_sample = None
+            controller._pending_enabled = (1,)
+        controller.fans[0].on_sample = queue_selection
+        controller._service_edit()
+        self.assertEqual(controller._pending_enabled, (1,))
+        self.assertEqual(controller.enabled, (0,))
+        controller._service_edit()
+        self.assertIsNone(controller._pending_enabled)
+        self.assertEqual(controller.enabled, (1,))
+        controller._end_edit()
 
     def test_missing_configuration_ack_stops_without_applying_new_threshold(self):
         controller = self.controller()

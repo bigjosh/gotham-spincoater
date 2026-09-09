@@ -1,0 +1,8 @@
+Project Pico 8792b44d9c11021d on COM7
+AUTONOMOUS_STOP_OK six hardware LOW overrides; all samplers still running; no worker
+IDLE_REAL_PIO_CAPTURE_OK six full period windows; all PWM LOW
+START_PRESERVES_CAPTURE_OK no sampler restart or lost averaging window
+HELD_STOP_PRESERVES_CAPTURE_OK new PIO periods continue; all PWM LOW
+STOP_RELEASE_STAYS_STOPPED_OK tach continues without power restart
+RESTART_PRESERVES_CAPTURE_OK six samplers initialized exactly once
+TACH_CONTINUITY_BOARD_OK synthetic internal edges; no positive PWM or saved-file changes

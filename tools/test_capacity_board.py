@@ -1,12 +1,12 @@
 """Bounded synthetic six-PIO/DMA capture + Wi-Fi capacity test (~3 seconds).
 
-Run only after stopping the application, with GP0/GP1/GP20 otherwise unwired.
+Run only after stopping the application, with GP0/GP1 otherwise unwired.
 GP18 (the actual fan PWM) is never configured or written by this script.
 
 All six PIO state machines use GP0 as a DUMMY PWM output and observe GP1,
 which hardware PWM drives at 100 Hz. Only the GPIO-selected PIO block drives
 the physical GP0 pad. Therefore this checks six capture engines, six DMA
-channels, continuous commands, STOP and Wi-Fi coexistence; it does NOT verify
+channels plus the shared STOP watcher/DMA chain and Wi-Fi; it does NOT verify
 six independent physical output waveforms or six actual motors.
 
 This test-only subclass gives each instance its own dummy-pin claim set.
@@ -17,17 +17,18 @@ from machine import Pin, PWM, mem32
 import network
 from time import ticks_ms, ticks_diff, sleep_ms
 from pio_fan import PioFan
-from combined_program import STOP_PCS
+from stop_guard import StopGuard
 
 
 class CapacityFan(PioFan):
     def __init__(self, sm_id):
         # Only permit the intentional GP0/GP1 sharing in this test object.
         self._claimed_pins = set()
-        super().__init__(pwm_pin=0, tach_pin=1, sm_id=sm_id, stop_pin=20)
+        super().__init__(pwm_pin=0, tach_pin=1, sm_id=sm_id, stop_pin=14)
 
 
 readers = []
+guard = None
 source = None
 ap = None
 ap_owned = False
@@ -39,11 +40,15 @@ try:
     assert not ap.active(), 'Stop the existing AP before this bounded test'
     ap_owned = True
     ap.config(ssid='Gotham Spinner Test', security=0, key='', channel=6)
-    Pin(20, Pin.IN, Pin.PULL_UP)
+    Pin(14, Pin.IN, Pin.PULL_UP)
     pins_owned = True
     for sm_id in (0, 1, 2, 3, 8, 9):
         readers.append(CapacityFan(sm_id))
     assert all(reader._block != 1 for reader in readers), 'Fan claimed wireless PIO1'
+    guard = StopGuard(tuple(readers))
+    assert guard.arm()
+    for reader in readers:
+        assert reader.arm()
 
     # Configure GP1 after all tach Pin constructors so the PWM function remains
     # selected; PIO observes the pad independently of its GPIO output function.
@@ -83,13 +88,14 @@ try:
         mem32[0x50300000] & 15))
 
     # PIO must park before any sample()/stop() method gets a chance to help.
-    Pin(20, Pin.OUT, value=0)
+    Pin(14, Pin.OUT, value=0)
     sleep_ms(20)
-    assert all(mem32[reader._addr] in STOP_PCS for reader in readers), 'Hardware STOP did not park every SM'
+    assert guard.fired(), 'Hardware STOP did not latch'
+    assert all(reader._sm.active() for reader in readers), 'STOP interrupted tach capture'
     assert Pin(0).value() == 0, 'Dummy output did not go LOW'
-    Pin(20, Pin.IN, Pin.PULL_UP)
+    Pin(14, Pin.IN, Pin.PULL_UP)
     sleep_ms(5)
-    assert all(mem32[reader._addr] in STOP_PCS for reader in readers), 'STOP release resumed a state machine'
+    assert guard.fired(), 'STOP release cleared the latch'
     assert all(reader.sample()['stopped'] for reader in readers), 'STOP latch not reported'
     print('CAPACITY_STOP six hardware latches stayed LOW after release; AP=%s' % ap.active())
 finally:
@@ -101,6 +107,11 @@ finally:
             reader.close()
         except BaseException as error:
             cleanup_errors.append(('fan', repr(error)))
+    if guard is not None:
+        try:
+            guard.close()
+        except BaseException as error:
+            cleanup_errors.append(('guard', repr(error)))
     if source is not None:
         try:
             source.deinit()
@@ -112,16 +123,20 @@ finally:
         except BaseException as error:
             cleanup_errors.append(('ap', repr(error)))
     if pins_owned:
-        for gpio in (0, 1, 20):
+        for gpio in (0, 1):
             try:
                 Pin(gpio, Pin.OUT, value=0)
                 Pin(gpio, Pin.IN, pull=None)
             except BaseException as error:
                 cleanup_errors.append(('gpio%d' % gpio, repr(error)))
+        try:
+            Pin(14, Pin.IN, Pin.PULL_UP)
+        except BaseException as error:
+            cleanup_errors.append(('stop_gpio', repr(error)))
     if cleanup_errors:
         print('CAPACITY_CLEANUP_ERRORS', cleanup_errors)
     else:
-        print('CAPACITY_CLEANUP_COMPLETE DMA and fan programs released, AP off, GP0/1/20 inputs')
+        print('CAPACITY_CLEANUP_COMPLETE DMA and fan programs released, AP off, GP0/1 inputs, STOP released')
 
 assert not cleanup_errors, 'Capacity test resource cleanup failed'
 print('CAPACITY_PASS six combined PIO/DMA engines + active Wi-Fi; elapsed_ms=%d; shared dummy output only' %
