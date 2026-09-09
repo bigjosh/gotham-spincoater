@@ -20,6 +20,8 @@ MicroPython controller for **Raspberry Pi Pico 2 W**, six **ARCTIC P12 Pro** fan
 
 The joystick belongs to the earlier manual bench UI and does not change power in this application. Motor start is available only through the physical button.
 
+The compact **START** and **STOP** footer labels are centered above the physical buttons, at approximately display x=160 and x=248. These positions come from the [manufacturer's straight-on board photograph](https://wiki.52pi.com/images/7/7e/EP-0127-03.jpg); the builder's 26.6 mm left / 44.5 mm right measurements fit the outer glass edges, which have unequal bezel margins. The footer labels do not act as touch controls.
+
 The TFT and browser always show a numeric RPM for each fan, including idle, disabled, and STOP/coast-down states. **Show zero below** defaults to **60 RPM**: a reading below 60 displays 0; exactly 60 remains 60. Raw tach measurements remain available to the seeker. When no valid recent measurement exists the number is also 0, and the browser labels it **No recent tach**; this does not prove the shaft is stationary.
 
 An enabled fan turns **red** after staying outside the configured RPM percentage band for the configured time. Its actual requested power and bar remain visible, and red clears on the first in-bounds reading. Disabled channels retain their red disabled styling, zero requested power, and no participation in control or warning checks. The phase countdown shows remaining ramp or dwell time.

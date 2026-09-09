@@ -22,10 +22,15 @@ class Dashboard:
         self._notice = None
         display.fill(BG)
         display.hline(8, 68, 464, TRACK)
-        display.fill_rect(8, 283, 226, 29, 0x1268)
-        display.fill_rect(246, 283, 226, 29, 0x6004)
-        display.text('LEFT: START', 33, 290, GREEN, scale=2, bg=0x1268)
-        display.text('RIGHT: STOP', 271, 290, WHITE, scale=2, bg=0x6004)
+        # Physical buttons sit beneath x~160/248 of the lit display. The
+        # measured 26.6 mm left / 44.5 mm right offsets reference outer glass,
+        # whose asymmetric bezel is visible in 52Pi's EP-0127-03 photograph.
+        for label, center, width, foreground, background in (
+                ('START', 160, 88, GREEN, 0x1268),
+                ('STOP', 248, 80, WHITE, 0x6004)):
+            display.fill_rect(center - width // 2, 283, width, 29, background)
+            display.text(label, center - len(label) * 8, 290,
+                         foreground, scale=2, bg=background)
 
     def set_notice(self, text=None):
         """Override the footer until the caller clears a transient notice."""
