@@ -2,7 +2,7 @@
 
 View the Pico from above with its USB socket at the top. The middle columns are physical header pin numbers; GP numbers are the names used in MicroPython. This map assumes the kit's original component links remain fitted.
 
-**FAN #n** marks the current firmware assignment; it does not confirm external wiring. Fans #0–#3 are enabled. Kit connections remain occupied even when the application does not use that feature.
+**FAN #n** marks the six-channel firmware allocation; it does not confirm external wiring. **Fans #0–#3 are enabled. Fans #4/#5 are disabled.** A **†** marks a fan signal that requires disconnecting the kit peripheral shown in parentheses before use. Kit connections remain occupied even when the application does not use that feature.
 
 | Left header | Pin | Pin | Right header |
 | --- | ---: | :--- | --- |
@@ -21,13 +21,24 @@ View the Pico from above with its USB socket at the top. The middle columns are 
 | GND | 13 | 28 | GND |
 | GP10 — touch reset* | 14 | 27 | **GP21 — FAN #1 tach** |
 | GP11 — touch interrupt* | 15 | 26 | **GP20 — FAN #1 PWM** |
-| GP12 — RGB LED | 16 | 25 | **GP19 — FAN #0 tach** |
-| GP13 — buzzer | 17 | 24 | **GP18 — FAN #0 PWM** |
+| **GP12 — FAN #4 PWM†** (RGB LED) | 16 | 25 | **GP19 — FAN #0 tach** |
+| **GP13 — FAN #5 PWM†** (buzzer) | 17 | 24 | **GP18 — FAN #0 PWM** |
 | GND | 18 | 23 | GND |
-| GP14 — BTN2 (stop) | 19 | 22 | GP17 — indicator LED D2 |
-| GP15 — BTN1 (START) | 20 | 21 | GP16 — indicator LED D1 |
+| GP14 — BTN2 (stop) | 19 | 22 | **GP17 — FAN #5 tach†** (LED D2) |
+| GP15 — BTN1 (START) | 20 | 21 | **GP16 — FAN #4 tach†** (LED D1) |
 
 Header locations follow the [Raspberry Pi Pico 2 W datasheet, figures 2 and 4](https://pip.raspberrypi.com/documents/RP-008304-DS). Peripheral assignments follow the [52Pi EP-0172 documentation](https://wiki.52pi.com/index.php?title=EP-0172). *GP4, GP10 and GP11 are marked on the [manufacturer's board photograph](https://wiki.52pi.com/images/thumb/4/4d/EP-0127-14.jpg/800px-EP-0127-14.jpg), although absent from its short software pin table.
+
+## All six fan pairs
+
+| Fan | PWM GPIO (physical pin) | Tach GPIO (physical pin) | Current status |
+| --- | --- | --- | --- |
+| **#0** | GP18 (24) | GP19 (25) | Enabled |
+| **#1** | GP20 (26) | GP21 (27) | Enabled |
+| **#2** | GP22 (29) | GP28 (34) | Enabled; tach pull-up to 3.3 V only |
+| **#3** | GP0 (1) | GP1 (2) | Enabled |
+| **#4** | GP12 (16) | GP16 (21) | Disabled; isolate RGB data and D1 branches first |
+| **#5** | GP13 (17) | GP17 (22) | Disabled; isolate buzzer-driver input and D2 branches first |
 
 The eight GPIOs without kit peripheral connections are **GP0, GP1, GP18, GP19, GP20, GP21, GP22 and GP28**. They are now assigned to four enabled PWM/tach pairs. There is no fifth free pair while keeping all original kit connections. The left-side pair, GP0/GP1, serves fan #3.
 
