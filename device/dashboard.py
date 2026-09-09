@@ -3,7 +3,7 @@
 BG = 0x0842
 CARD = 0x10C4
 DISABLED_CARD = 0x7803
-FAULT_CARD = 0x6004
+WARNING_CARD = 0x6004
 DISABLED_BUTTON = 0xA106
 LOCKED_BUTTON = 0x5003
 WHITE = 0xEF7D
@@ -72,7 +72,7 @@ class Dashboard:
     def update(self, snapshot):
         state = str(snapshot.get('state', 'IDLE')).upper()
         running = bool(snapshot.get('running', False))
-        color = RED if state in ('ERROR', 'FAULT') else (CYAN if running else GREEN)
+        color = RED if state == 'ERROR' else (CYAN if running else GREEN)
         self._text('state', state, 8, 9, 240, 2, color)
         target = snapshot.get('target_rpm', 0) or 0
         self._text('target', '%d RPM' % round(target), 280, 9, 192, 2, CYAN)
@@ -89,10 +89,10 @@ class Dashboard:
         for channel in range(6):
             fan = fans[channel] if channel < len(fans) else {}
             self._fan(channel, fan, running=running)
-        message = (snapshot.get('message') if state in ('ERROR', 'FAULT') else
+        message = (snapshot.get('message') if state == 'ERROR' else
                    self._notice or snapshot.get('message'))
         self._text('message', message or 'Tap ENABLE / DISABLE to choose participating fans',
-                   8, 248, 464, color=RED if state in ('ERROR', 'FAULT') else
+                   8, 248, 464, color=RED if state == 'ERROR' else
                    (WHITE if self._notice else MUTED))
         wifi = '%s  %s' % (snapshot.get('ssid', 'Wi-Fi'), snapshot.get('ip', ''))
         self._text('wifi', wifi, 8, 265, 368, color=CYAN)
@@ -103,10 +103,10 @@ class Dashboard:
         prefix = 'fan%d:' % channel
         enabled = bool(fan.get('enabled', False))
         available = bool(fan.get('available', True))
-        fault = enabled and bool(fan.get('fault'))
+        warning = enabled and bool(fan.get('warning'))
         x, y = 8 + (channel % 3) * 156, 76 + (channel // 3) * 84
-        bg = FAULT_CARD if fault else (CARD if enabled else DISABLED_CARD)
-        appearance = (enabled, fault)
+        bg = WARNING_CARD if warning else (CARD if enabled else DISABLED_CARD)
+        appearance = (enabled, warning)
         if self._cache.get(prefix + 'appearance') != appearance:
             for key in list(self._cache):
                 if key.startswith(prefix):
@@ -114,12 +114,13 @@ class Dashboard:
             self._cache[prefix + 'appearance'] = appearance
             self.display.fill_rect(x, y, 152, 80, bg)
             self.display.text('FAN #%d' % channel, x + 8, y + 13,
-                              CYAN if enabled and not fault else WHITE, bg=bg)
+                              CYAN if enabled and not warning else WHITE, bg=bg)
             self._yield()
-        duty = max(0, min(100, fan.get('duty', 0) or 0)) if enabled and not fault else 0
+        duty = max(0, min(100, fan.get('duty', 0) or 0)) if enabled else 0
+        running_label = ('OFF' if not enabled else 'IO ERROR' if fan.get('driver_error')
+                         else 'OFF RPM' if warning else 'RUN')
         label = 'LOCKED' if not available else (
-            ('FAULT' if fault else 'RUN') if running else
-            ('DISABLE' if enabled else 'ENABLE'))
+            running_label if running else ('DISABLE' if enabled else 'ENABLE'))
         button_bg = (LOCKED_BUTTON if not available else
                      (TRACK if enabled else DISABLED_BUTTON))
         signature = (label, button_bg)
@@ -140,15 +141,15 @@ class Dashboard:
             number = '%d' % round(rpm)
         self._text(prefix + 'rpm', number, x + 8, y + 34, 136, 3,
                    WHITE, bg)
-        self._text(prefix + 'power', 'FAULT' if fault else 'PWM %3d%%' % round(duty),
+        self._text(prefix + 'power', 'PWM %3d%%' % round(duty),
                    x + 8, y + 60, 80,
-                   color=MUTED if enabled and not fault else WHITE, bg=bg)
+                   color=MUTED if enabled and not warning else WHITE, bg=bg)
         self._text(prefix + 'unit', 'RPM', x + 112, y + 60, 32,
-                   color=MUTED if enabled and not fault else WHITE, bg=bg)
+                   color=MUTED if enabled and not warning else WHITE, bg=bg)
         pixels = round(136 * duty / 100)
-        if self._cache.get(prefix + 'bar') != (pixels, bool(fault)):
-            self._cache[prefix + 'bar'] = (pixels, bool(fault))
+        if self._cache.get(prefix + 'bar') != (pixels, warning):
+            self._cache[prefix + 'bar'] = (pixels, warning)
             self.display.fill_rect(x + 8, y + 71, 136, 5, TRACK)
             if pixels:
-                self.display.fill_rect(x + 8, y + 71, pixels, 5, RED if fault else CYAN)
+                self.display.fill_rect(x + 8, y + 71, pixels, 5, RED if warning else CYAN)
             self._yield()

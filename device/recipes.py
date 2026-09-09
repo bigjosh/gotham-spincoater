@@ -13,9 +13,10 @@ MAX_SECONDS = 3600
 DEFAULT_SETTINGS = {
     "max_power_per_s": 10,
     "tolerance_rpm": 50,
-    "settle_s": 0.5,
-    "reach_timeout_s": 15,
+    "rpm_warning_percent": 5,
+    "rpm_warning_delay_s": 2,
 }
+LEGACY_SETTINGS = ("max_power_per_s", "tolerance_rpm", "settle_s", "reach_timeout_s")
 DEFAULT_DATA = {
     "version": 1,
     "selected": "Default",
@@ -50,12 +51,23 @@ def _number(value, low, high, label):
 
 
 def validate_settings(settings):
+    # Migrate the exact previous schema in memory. Existing recipes and
+    # their backup stay untouched until the user explicitly saves settings.
+    if isinstance(settings, dict) and set(settings) == set(LEGACY_SETTINGS):
+        _number(settings["settle_s"], 0.05, 10, "settle_s")
+        _number(settings["reach_timeout_s"], 1, 120, "reach_timeout_s")
+        settings = {
+            "max_power_per_s": settings["max_power_per_s"],
+            "tolerance_rpm": settings["tolerance_rpm"],
+            "rpm_warning_percent": DEFAULT_SETTINGS["rpm_warning_percent"],
+            "rpm_warning_delay_s": DEFAULT_SETTINGS["rpm_warning_delay_s"],
+        }
     _keys(settings, DEFAULT_SETTINGS, "settings")
     ranges = {
         "max_power_per_s": (0.1, 100),
         "tolerance_rpm": (1, 500),
-        "settle_s": (0.05, 10),
-        "reach_timeout_s": (1, 120),
+        "rpm_warning_percent": (0.1, 100),
+        "rpm_warning_delay_s": (0, 120),
     }
     result = {}
     for key, bounds in ranges.items():

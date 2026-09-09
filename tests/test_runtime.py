@@ -71,6 +71,8 @@ class FakeFan:
         self.on_stop = None
         self.arm_result = True
         self.fault = None
+        self.rpm = 0
+        self.valid = False
         self.samples = 0
         self.commands = []
         self.on_close = None
@@ -87,7 +89,8 @@ class FakeFan:
         self.samples += 1
         if self.on_sample:
             self.on_sample()
-        return {"rpm": 0, "valid": False, "pulses": 0,
+        return {"rpm": self.rpm, "valid": self.valid,
+                "pulses": self.samples if self.valid else 0,
                 "stopped": self.stopped, "fault": self.fault}
 
     def set_duty(self, value):
@@ -227,6 +230,78 @@ class RuntimeTests(unittest.TestCase):
         data["settings"]["max_power_per_s"] = 7
         return data
 
+    def warning_recipe(self):
+        data = self.validate_document(self.book.data)
+        data['settings']['rpm_warning_percent'] = 10
+        data['settings']['rpm_warning_delay_s'] = 0.2
+        data['profiles'][0]['steps'] = [
+            {'rpm': 0, 'slew_s': 0, 'dwell_s': 0},
+            {'rpm': 2000, 'slew_s': 0, 'dwell_s': 30},
+            {'rpm': 0, 'slew_s': 0, 'dwell_s': 0},
+        ]
+        self.book.data = self.validate_document(data)
+
+    def test_missing_tach_warns_but_continues_driving_and_recovery_clears_warning(self):
+        self.config.ENABLED_CHANNELS = (0, 1)
+        self.warning_recipe()
+        controller = self.controller()
+        controller.fans[1].valid = True
+        controller.fans[1].rpm = 2000
+        observed = []
+
+        def monitor():
+            if self.clock.now in (20000, 20300):
+                observed.append((controller.snapshot(), controller.fans[0].output,
+                                 controller.fans[0].stopped, len(controller.fans[0].commands)))
+            if self.clock.now == 20020:
+                controller.fans[0].valid = True
+                controller.fans[0].rpm = 2000
+
+        self.run_for(controller, 20400, monitor)
+        before, after = observed
+        self.assertTrue(before[0]['running'])
+        self.assertTrue(before[0]['fans'][0]['warning'])
+        self.assertTrue(before[0]['fans'][0]['participating'])
+        self.assertIsNone(before[0]['fans'][0]['driver_error'])
+        self.assertFalse(before[0]['fans'][1]['warning'])
+        self.assertGreater(before[1], 0)
+        self.assertFalse(before[2])
+        self.assertTrue(after[0]['running'])
+        self.assertFalse(after[0]['fans'][0]['warning'])
+        self.assertTrue(after[0]['fans'][0]['in_bounds'])
+        self.assertGreater(after[1], 0)
+        self.assertFalse(after[2])
+        self.assertGreater(after[3], before[3])
+        self.assertEqual(controller.enabled, (0, 1))
+        self.assertEqual(controller.fan_settings.load(), (0, 1))
+        self.assertNotIn('fault', after[0]['fans'][0])
+        self.assertNotIn('fault_count', after[0])
+
+    def test_measured_off_target_warning_never_stops_either_output(self):
+        self.config.ENABLED_CHANNELS = (0, 1)
+        self.warning_recipe()
+        controller = self.controller()
+        for fan in controller.fans.values():
+            fan.valid = True
+            fan.rpm = 500
+        observed = []
+
+        def monitor():
+            if self.clock.now in (1000, 19000):
+                observed.append((controller.snapshot(),
+                                 tuple(controller.fans[i].output for i in (0, 1)),
+                                 tuple(controller.fans[i].stopped for i in (0, 1))))
+
+        self.run_for(controller, 19100, monitor)
+        for state, outputs, stopped in observed:
+            self.assertTrue(state['running'])
+            self.assertEqual(state['warning_count'], 2)
+            self.assertTrue(all(state['fans'][i]['participating'] for i in (0, 1)))
+            self.assertTrue(all(state['fans'][i]['driver_error'] is None for i in (0, 1)))
+            self.assertTrue(all(output > 0 for output in outputs))
+            self.assertEqual(stopped, (False, False))
+        self.assertGreaterEqual(observed[1][1][0], observed[0][1][0])
+
     def test_constructor_allocates_available_fans_at_zero_and_parks_disabled(self):
         controller = self.controller()
         self.assertEqual(list(controller.fans), [0, 1, 2, 3])
@@ -308,7 +383,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(controller.engine.state, "STOPPED")
         self.assertEqual(controller.engine.message, "STOP button")
 
-    def test_hardware_fault_parks_only_failed_fan_and_keeps_healthy_power_running(self):
+    def test_driver_error_parks_only_failed_hardware_and_keeps_healthy_power_running(self):
         self.config.ENABLED_CHANNELS = (0, 1)
         controller = self.controller()
         observed = []
@@ -329,9 +404,9 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(len(observed), 2)
         for state, healthy_stopped, healthy_output, failed_stopped, failed_output, _ in observed:
             self.assertTrue(state['running'])
-            self.assertIsNone(state['fans'][0]['fault'])
-            self.assertEqual(state['fans'][1]['fault'], 'command_underrun')
-            self.assertFalse(state['fans'][1]['participating'])
+            self.assertIsNone(state['fans'][0]['driver_error'])
+            self.assertEqual(state['fans'][1]['driver_error'], 'command_underrun')
+            self.assertTrue(state['fans'][1]['participating'])
             self.assertTrue(state['fans'][1]['enabled'])
             self.assertFalse(healthy_stopped)
             self.assertGreater(healthy_output, 0)
@@ -369,11 +444,11 @@ class RuntimeTests(unittest.TestCase):
         controller.fans[0].on_arm = fail
         self.one_tick(controller)
         self.assertTrue(controller.snapshot()['running'])
-        self.assertIn('DMA unavailable', controller.snapshot()['fans'][0]['fault'])
+        self.assertIn('DMA unavailable', controller.snapshot()['fans'][0]['driver_error'])
         self.assertEqual(controller.fans[0].commands, [])
         self.assertEqual(len(controller.fans[1].commands), 1)
 
-    def test_sample_exception_isolated_and_retained_in_published_fault(self):
+    def test_sample_exception_isolated_and_retained_in_published_driver_error(self):
         self.config.ENABLED_CHANNELS = (0, 1)
         controller = self.controller()
         def fail():
@@ -381,12 +456,12 @@ class RuntimeTests(unittest.TestCase):
         controller.fans[0].on_sample = fail
         self.run_for(controller, 220)
         self.assertTrue(controller.snapshot()['running'])
-        self.assertIn('RX failure', controller.snapshot()['fans'][0]['fault'])
+        self.assertIn('RX failure', controller.snapshot()['fans'][0]['driver_error'])
         self.assertEqual(controller.fans[0].samples, 1)
         self.assertEqual(controller.fans[0].commands, [])
         self.assertGreater(len(controller.fans[1].commands), 1)
 
-    def test_power_exception_isolated_and_last_failure_ends_run(self):
+    def test_power_exceptions_hold_broken_outputs_zero_without_stopping_recipe(self):
         self.config.ENABLED_CHANNELS = (0, 1)
         controller = self.controller()
         def fail():
@@ -400,28 +475,29 @@ class RuntimeTests(unittest.TestCase):
                 controller.fans[1].on_set_duty = fail
         self.run_for(controller, 220, monitor)
         self.assertTrue(observed[0]['running'])
-        self.assertIn('TX failure', observed[0]['fans'][0]['fault'])
+        self.assertIn('TX failure', observed[0]['fans'][0]['driver_error'])
         self.assertEqual(controller.fans[0].samples, 1)
         self.assertEqual(controller.fans[0].commands, [])
         self.assertGreater(len(controller.fans[1].commands), 1)
-        self.assertEqual(controller.snapshot()['state'], 'FAULT')
-        self.assertFalse(controller.snapshot()['running'])
+        self.assertNotEqual(controller.snapshot()['state'], 'ERROR')
+        self.assertTrue(controller.snapshot()['running'])
+        self.assertTrue(all(controller.snapshot()['fans'][i]['duty'] == 0 for i in (0, 1)))
         self.assertEqual(controller.engine.duties, [0] * 6)
 
-    def test_fresh_start_rearms_selected_faulted_fan_and_clears_latch(self):
+    def test_fresh_start_retries_selected_hardware_and_clears_driver_error(self):
         self.config.ENABLED_CHANNELS = (0, 1)
         controller = self.controller()
         def fail():
             raise OSError('DMA unavailable')
         controller.fans[0].on_arm = fail
         self.one_tick(controller)
-        self.assertIsNotNone(controller.snapshot()['fans'][0]['fault'])
+        self.assertIsNotNone(controller.snapshot()['fans'][0]['driver_error'])
         controller.engine.stop('STOP button')
         controller.closing = controller.finished = False
         controller.fans[0].on_arm = None
         self.one_tick(controller)
         self.assertTrue(controller.snapshot()['running'])
-        self.assertIsNone(controller.snapshot()['fans'][0]['fault'])
+        self.assertIsNone(controller.snapshot()['fans'][0]['driver_error'])
         self.assertTrue(controller.snapshot()['fans'][0]['participating'])
         self.assertEqual(controller.fans[0].arms, 2)
         self.assertEqual(controller.fans[1].arms, 2)
@@ -435,7 +511,7 @@ class RuntimeTests(unittest.TestCase):
         controller.fans[0].fault = 'command_underrun'
         controller.fans[0].on_stop = fail
         self.one_tick(controller, start=False)
-        self.assertEqual(controller.snapshot()['state'], 'FAULT')
+        self.assertEqual(controller.snapshot()['state'], 'ERROR')
         self.assertTrue(controller.closing)
         self.assertEqual(FakePin.levels[14], 0)
         self.assertEqual(controller.fans[1].commands, [])
@@ -478,17 +554,17 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(controller.fans[1].commands, [])
         self.assertEqual(FakePin.levels[14], 1)
 
-    def test_clock_change_stops_every_fan_as_controller_fault(self):
+    def test_clock_change_stops_every_fan_as_controller_error(self):
         self.config.ENABLED_CHANNELS = (0, 1)
         controller = self.controller()
         controller.fans[0].fault = 'clock_changed'
         self.one_tick(controller)
-        self.assertEqual(controller.snapshot()['state'], 'FAULT')
+        self.assertEqual(controller.snapshot()['state'], 'ERROR')
         self.assertIn('clock changed', controller.snapshot()['message'])
         self.assertEqual(FakePin.levels[14], 0)
         self.assertTrue(all(fan.stopped for fan in controller.fans.values()))
 
-    def test_worker_exception_stops_outputs_and_publishes_fault(self):
+    def test_worker_exception_stops_outputs_and_publishes_error(self):
         controller = self.controller()
 
         def fail(*args):
@@ -499,7 +575,7 @@ class RuntimeTests(unittest.TestCase):
         controller._run()
         self.assertTrue(controller.finished)
         self.assertTrue(controller.fans[0].stopped)
-        self.assertEqual(controller.snapshot()["state"], "FAULT")
+        self.assertEqual(controller.snapshot()["state"], "ERROR")
         self.assertIn("control failed", controller.error)
 
     def test_thread_launch_failure_remains_closeable(self):
@@ -605,11 +681,12 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(FakePin.levels[14], 0)
         controller.fans[0].on_close = None
 
-    def test_disabled_fans_are_not_sampled_commanded_or_used_for_faults(self):
+    def test_disabled_fans_are_not_sampled_commanded_or_used_for_driver_errors(self):
         controller = self.controller()
         controller.fans[1].fault = 'command_underrun'
         self.one_tick(controller)
-        self.assertNotEqual(controller.snapshot()['state'], 'FAULT')
+        self.assertNotEqual(controller.snapshot()['state'], 'ERROR')
+        self.assertIsNone(controller.snapshot()['fans'][1]['driver_error'])
         for i in (1, 2, 3):
             self.assertEqual(controller.fans[i].arms, 0)
             self.assertEqual(controller.fans[i].samples, 0)

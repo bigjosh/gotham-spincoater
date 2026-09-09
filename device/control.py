@@ -18,9 +18,7 @@ class ControlEngine:
     # seeking limits hunting while the fan and eight-period average respond.
     SEEK_GAIN = 0.01
     MAX_CONTROL_DT_S = 0.1
-    STARTUP_TACH_GRACE_S = 8.0
     STARTUP_DUTY_LIMIT = 30.0
-    LOST_TACH_GRACE_S = 1.5
     QUIET_S = 1.5
 
     def __init__(self, enabled=(0,)):
@@ -30,7 +28,6 @@ class ControlEngine:
             raise ValueError("enabled channels must be unique integers from 0 to 5")
         self.enabled = tuple(enabled)
         self.duties = [0.0] * 6
-        self.faults = [None] * 6
         self.state = "IDLE"
         self.target_rpm = 0.0
         self.message = "Ready" if self.enabled else "Enable at least one fan before START"
@@ -39,30 +36,26 @@ class ControlEngine:
         self._index = 0
         self._now_ms = 0
         self._last_ms = None
-        self._elapsed = 0.0
-        self._phase_elapsed = 0.0
-        self._within = [0.0] * 6
-        self._outside = [0.0] * 6
-        self._near = [False] * 6
-        self._dwell = 0.0
+        self._elapsed_ms = 0
+        self._phase_elapsed_ms = 0
         self._from_rpm = 0.0
         self._seen_tach = [False] * 6
-        self._missing = [0.0] * 6
         self._zero_since = [None] * 6
         self._last_pulse_ms = [None] * 6
         self._pulse_counts = [None] * 6
         self._readings = [{} for _ in range(6)]
         self._standstill_assumed = False
         self._blind_coast = False
+        self._clear_warnings()
 
     @property
     def running(self):
-        return self.state in ("RAMP", "SETTLE", "DWELL")
+        return self.state in ("RAMP", "DWELL")
 
     @property
     def participating(self):
-        """Selected channels still allowed to run in this attempt."""
-        return tuple(channel for channel in self.enabled if self.faults[channel] is None)
+        """RPM deviations never remove a selected channel from the run."""
+        return self.enabled
 
     def start(self, profile, settings, now_ms):
         if self.running:
@@ -72,20 +65,21 @@ class ControlEngine:
         self._profile = validate_profile(profile)
         self._settings = validate_settings(settings)
         self.duties = [0.0] * 6
-        self.faults = [None] * 6
         self.target_rpm = 0.0
         self._now_ms = now_ms
         self._last_ms = now_ms
-        self._elapsed = 0.0
+        self._elapsed_ms = 0
         self._seen_tach = [False] * 6
-        self._missing = [0.0] * 6
         self._zero_since = [now_ms] * 6
         self._last_pulse_ms = [now_ms] * 6
         self._pulse_counts = [None] * 6
         self._readings = [{} for _ in range(6)]
         self._standstill_assumed = False
         self._blind_coast = False
+        self._clear_warnings()
         self._enter_step(0)
+        self._advance_schedule(0)
+        self._update_warnings()
         return self.snapshot()
 
     def set_enabled(self, enabled):
@@ -103,48 +97,107 @@ class ControlEngine:
         self.state = "STOPPED"
         self.message = str(reason)
         self._blind_coast = False
+        self._standstill_assumed = False
+        self._clear_warnings()
         return self.snapshot()
 
-    def _fault(self, reason):
-        self.stop(reason)
-        self.state = "FAULT"
+    def _clear_warnings(self):
+        self._outside_since = [None] * 6
+        self._out_of_bounds_s = [0.0] * 6
+        self._in_bounds = [False] * 6
+        self._warnings = [False] * 6
+        self._error_percent = [None] * 6
 
-    def fault_channel(self, channel, reason):
-        """Latch one channel out until START, preserving the saved selection."""
-        if channel not in self.enabled or self.faults[channel] is not None:
+    def _zero_in_bounds(self, channel, reading):
+        if self._zero_since[channel] is None:
+            self._zero_since[channel] = self._now_ms
+        if reading.get("valid", False):
+            return reading["rpm"] <= self._settings["tolerance_rpm"]
+        quiet_since = self._last_pulse_ms[channel]
+        quiet = (quiet_since is not None
+                 and ticks_diff(self._now_ms, quiet_since) >= self.QUIET_S * 1000
+                 and ticks_diff(self._now_ms, self._zero_since[channel]) >= self.QUIET_S * 1000)
+        self._standstill_assumed = self._standstill_assumed or quiet
+        return quiet
+
+    def _update_warnings(self):
+        if not self.running:
+            self._clear_warnings()
             return
-        self.faults[channel] = str(reason)
-        self.duties[channel] = 0.0
-        self._readings[channel] = {}
-        self._near[channel] = False
-        if not self.participating:
-            self._fault("Fan %d: %s; no fans remaining" % (channel, reason))
+        target = self.target_rpm
+        for channel in self.enabled:
+            reading = self._readings[channel]
+            error_percent = None
+            if target == 0:
+                in_bounds = self._zero_in_bounds(channel, reading)
+            else:
+                self._zero_since[channel] = None
+                if reading.get("valid", False):
+                    error_percent = abs(reading["rpm"] - target) * 100.0 / target
+                    in_bounds = error_percent <= self._settings["rpm_warning_percent"]
+                else:
+                    in_bounds = False
+            self._error_percent[channel] = error_percent
+            self._in_bounds[channel] = bool(in_bounds)
+            if in_bounds:
+                self._outside_since[channel] = None
+                self._out_of_bounds_s[channel] = 0.0
+                self._warnings[channel] = False
+            else:
+                if self._outside_since[channel] is None:
+                    self._outside_since[channel] = self._now_ms
+                outside = max(0, ticks_diff(self._now_ms, self._outside_since[channel])) / 1000.0
+                self._out_of_bounds_s[channel] = outside
+                self._warnings[channel] = outside >= self._settings["rpm_warning_delay_s"]
 
     def _enter_step(self, index):
         self._from_rpm = self.target_rpm
         self._index = index
-        self._phase_elapsed = 0.0
-        self._within = [0.0] * 6
-        self._outside = [0.0] * 6
-        self._near = [False] * 6
-        self._dwell = 0.0
+        self._phase_elapsed_ms = 0
         step = self._profile["steps"][index]
-        self.state = "RAMP" if step["slew_s"] > 0 else "SETTLE"
-        if self.state == "SETTLE":
+        self.state = "RAMP" if step["slew_s"] > 0 else "DWELL"
+        if self.state == "DWELL":
             self.target_rpm = float(step["rpm"])
-        self.message = "Ramping" if self.state == "RAMP" else "Waiting for all fans"
+        self.message = "Ramping" if self.state == "RAMP" else "Holding target"
 
     def _advance(self):
         if self._index + 1 == len(self._profile["steps"]):
             self.state = "COMPLETE"
             self.target_rpm = 0.0
             self.duties = [0.0] * 6
-            failed = sum(fault is not None for fault in self.faults)
-            self.message = ("Recipe complete; %d fan%s faulted" %
-                            (failed, "" if failed == 1 else "s")
-                            if failed else "Recipe complete")
+            self.message = "Recipe complete"
+            self._blind_coast = False
+            self._standstill_assumed = False
         else:
             self._enter_step(self._index + 1)
+
+    def _advance_schedule(self, elapsed_ms):
+        """Consume wall time without issuing intermediate power commands.
+
+        At most two phases per step are crossed, including zero-duration
+        steps. A late tick seeks only the target due now, never old targets.
+        Integer milliseconds prevent cumulative float rounding over long runs.
+        """
+        while self.running:
+            step = self._profile["steps"][self._index]
+            self.message = "Ramping" if self.state == "RAMP" else "Holding target"
+            duration = step["slew_s"] if self.state == "RAMP" else step["dwell_s"]
+            duration_ms = round(duration * 1000)
+            remaining_ms = max(0, duration_ms - self._phase_elapsed_ms)
+            if elapsed_ms < remaining_ms:
+                self._phase_elapsed_ms += elapsed_ms
+                if self.state == "RAMP":
+                    fraction = self._phase_elapsed_ms / duration_ms
+                    self.target_rpm = self._from_rpm + (step["rpm"] - self._from_rpm) * fraction
+                return
+            elapsed_ms = max(0, elapsed_ms - remaining_ms)
+            if self.state == "RAMP":
+                self.target_rpm = float(step["rpm"])
+                self.state = "DWELL"
+                self._phase_elapsed_ms = 0
+                self.message = "Holding target"
+            else:
+                self._advance()
 
     def _capture(self, readings):
         emergency = False
@@ -152,6 +205,7 @@ class ControlEngine:
             reading = readings.get(channel, {})
             rpm = reading.get("rpm")
             valid = (reading.get("valid") is True
+                     and not reading.get("driver_error") and not reading.get("fault")
                      and not isinstance(rpm, bool)
                      and isinstance(rpm, (int, float))
                      and 0 <= rpm < float("inf"))
@@ -169,6 +223,7 @@ class ControlEngine:
             self._readings[channel] = {
                 "rpm": float(rpm) if valid else None,
                 "valid": bool(valid), "age_ms": age,
+                "driver_error": reading.get("driver_error") or reading.get("fault"),
             }
             pulses = reading.get("pulses")
             if pulses is not None:
@@ -177,60 +232,39 @@ class ControlEngine:
                 self._pulse_counts[channel] = pulses
             elif valid:
                 self._last_pulse_ms[channel] = self._now_ms
-            # A driver fault also parks its PIO state machine. That stopped
-            # flag belongs to this channel, not the shared physical STOP.
-            if reading.get("fault"):
-                self.fault_channel(channel, reading["fault"])
-            else:
+            # Runtime owns driver errors. A PIO driver error can also park its
+            # output; that stopped flag does not represent the shared STOP.
+            if not reading.get("fault") and not reading.get("driver_error"):
                 emergency = emergency or bool(reading.get("stopped", False))
         return emergency
 
-    def _regulate(self, elapsed, control_dt):
+    def _regulate(self, control_dt):
         target = self.target_rpm
         self._standstill_assumed = False
         self._blind_coast = False
         for channel in self.participating:
             reading = self._readings[channel]
             valid = reading["valid"]
+            if reading.get("driver_error"):
+                self.duties[channel] = 0.0
+                continue
             if target == 0:
                 self.duties[channel] = 0.0
-                self._missing[channel] = 0.0
-                if self._zero_since[channel] is None:
-                    self._zero_since[channel] = self._now_ms
-                if valid:
-                    near = reading["rpm"] <= self._settings["tolerance_rpm"]
-                else:
-                    quiet_since = self._last_pulse_ms[channel]
-                    zero_since = self._zero_since[channel]
-                    quiet = (quiet_since is not None
-                             and ticks_diff(self._now_ms, quiet_since) >= self.QUIET_S * 1000
-                             and ticks_diff(self._now_ms, zero_since) >= self.QUIET_S * 1000)
-                    near = quiet
-                    self._standstill_assumed = self._standstill_assumed or quiet
-                self._near[channel] = near
                 continue
 
             self._zero_since[channel] = None
             if valid:
                 self._seen_tach[channel] = True
-                self._missing[channel] = 0.0
                 error = target - reading["rpm"]
                 near = abs(error) <= self._settings["tolerance_rpm"]
                 rate = 0.0 if near else error * self.SEEK_GAIN
             else:
-                self._missing[channel] += elapsed
                 step = self._profile["steps"][self._index]
                 blind_coast = (self.state == "RAMP" and step["rpm"] == 0
                                and self._from_rpm > 0
                                and self.duties[channel] <= self.STARTUP_DUTY_LIMIT)
-                grace = (self.LOST_TACH_GRACE_S if self._seen_tach[channel]
-                         else self.STARTUP_TACH_GRACE_S)
-                if not blind_coast and self._missing[channel] >= grace:
-                    self.fault_channel(channel, "tach signal missing")
-                    continue
-                near = False
                 # Initial spin-up is bounded. Once measured, hold power during
-                # a short dropout rather than treating missing RPM as zero.
+                # absent tach rather than treating missing RPM as zero.
                 if blind_coast:
                     # A fan can stop below its minimum running speed before a
                     # slow zero-endpoint ramp finishes. With <=30% requested
@@ -245,86 +279,28 @@ class ControlEngine:
             if not self._seen_tach[channel]:
                 duty = min(self.STARTUP_DUTY_LIMIT, duty)
             self.duties[channel] = duty
-            self._near[channel] = near
         if self._blind_coast:
             self.message = "Coasting toward stop; tach absent"
-        return bool(self.participating) and all(self._near[i] for i in self.participating)
 
     def update(self, now_ms, readings):
         self._now_ms = now_ms
-        elapsed = 0.0 if self._last_ms is None else max(0, ticks_diff(now_ms, self._last_ms)) / 1000.0
+        elapsed_ms = 0 if self._last_ms is None else max(0, ticks_diff(now_ms, self._last_ms))
         self._last_ms = now_ms
         emergency = self._capture(readings)
         if emergency:
             # stop() latches each PIO channel. Its next sample must not erase
-            # the original fault or the explicit reason for a software STOP.
-            if self.state not in ("FAULT", "STOPPED"):
+            # the explicit reason for a software STOP.
+            if self.state != "STOPPED":
                 self.stop("Hardware emergency stop")
             return list(self.duties)
         if not self.running:
             return list(self.duties)
-        self._elapsed += elapsed
-        control_dt = min(elapsed, self.MAX_CONTROL_DT_S)
-        step = self._profile["steps"][self._index]
-        state_at_start = self.state
-        if self.state == "RAMP":
-            self.message = "Ramping"
-            self._phase_elapsed += elapsed
-            fraction = min(1.0, self._phase_elapsed / step["slew_s"])
-            self.target_rpm = self._from_rpm + (step["rpm"] - self._from_rpm) * fraction
-            if fraction >= 1:
-                self.target_rpm = float(step["rpm"])
-                self.state = "SETTLE"
-                self._phase_elapsed = 0.0
-                self.message = "Waiting for all fans"
-        within = self._regulate(elapsed, control_dt)
-        if not self.running:
-            return list(self.duties)
-        if self.state == "SETTLE":
-            if state_at_start == "SETTLE":
-                self._phase_elapsed += elapsed
-                for channel in self.participating:
-                    self._within[channel] = (self._within[channel] + control_dt
-                                             if self._near[channel] else 0.0)
-            if self._phase_elapsed >= self._settings["reach_timeout_s"]:
-                # Each survivor keeps its own settling history. A lagging
-                # peer cannot turn already-settled channels into faults.
-                for channel in self.participating:
-                    if self._within[channel] + 1e-9 < self._settings["settle_s"]:
-                        self.fault_channel(channel, "Timed out reaching target")
-            if not self.running:
-                return list(self.duties)
-            if all(self._within[i] + 1e-9 >= self._settings["settle_s"]
-                   for i in self.participating):
-                self.state = "DWELL"
-                self._phase_elapsed = 0.0
-                self.message = "Holding target"
-                if step["dwell_s"] == 0:
-                    self._advance()
-        elif self.state == "DWELL":
-            for channel in self.participating:
-                if self._near[channel]:
-                    self._within[channel] += control_dt
-                else:
-                    self._within[channel] = 0.0
-                if self._within[channel] + 1e-9 >= self._settings["settle_s"]:
-                    self._outside[channel] = 0.0
-                elif self._outside[channel] or not self._near[channel]:
-                    # Brief good readings do not continually restart the
-                    # deadline for a channel that never recovers stability.
-                    self._outside[channel] += elapsed
-                    if self._outside[channel] >= self._settings["reach_timeout_s"]:
-                        self.fault_channel(channel, "Timed out recovering target during dwell")
-            if not self.running:
-                return list(self.duties)
-            within = all(self._near[i] for i in self.participating)
-            if within:
-                self._dwell += control_dt
-                self.message = "Holding target"
-                if self._dwell + 1e-9 >= step["dwell_s"]:
-                    self._advance()
-            else:
-                self.message = "Dwell paused: waiting for all fans"
+        self._elapsed_ms += elapsed_ms
+        control_dt = min(elapsed_ms / 1000.0, self.MAX_CONTROL_DT_S)
+        self._advance_schedule(elapsed_ms)
+        if self.running:
+            self._regulate(control_dt)
+        self._update_warnings()
         return list(self.duties)
 
     def snapshot(self):
@@ -332,11 +308,9 @@ class ControlEngine:
         if self._profile:
             step = self._profile["steps"][self._index]
             if self.state == "RAMP":
-                remaining = max(0.0, step["slew_s"] - self._phase_elapsed)
-            elif self.state == "SETTLE":
-                remaining = max(0.0, self._settings["reach_timeout_s"] - self._phase_elapsed)
+                remaining = max(0.0, step["slew_s"] - self._phase_elapsed_ms / 1000.0)
             elif self.state == "DWELL":
-                remaining = max(0.0, step["dwell_s"] - self._dwell)
+                remaining = max(0.0, step["dwell_s"] - self._phase_elapsed_ms / 1000.0)
         fans = []
         for channel in range(6):
             reading = self._readings[channel]
@@ -346,7 +320,11 @@ class ControlEngine:
             target = self.target_rpm if participating else 0
             fans.append({"enabled": channel in self.enabled, "rpm": rpm,
                          "valid": valid, "duty": self.duties[channel],
-                         "participating": participating, "fault": self.faults[channel],
+                         "participating": participating,
+                         "warning": self._warnings[channel],
+                         "in_bounds": self._in_bounds[channel],
+                         "out_of_bounds_s": self._out_of_bounds_s[channel],
+                         "error_percent": self._error_percent[channel],
                          "target_rpm": target,
                          "error": target - rpm if valid else None})
         return {
@@ -356,9 +334,9 @@ class ControlEngine:
             "step_count": len(self._profile["steps"]) if self._profile else 0,
             "phase_remaining_s": remaining,
             "recipe_name": self._profile["name"] if self._profile else "",
-            "message": self.message, "elapsed_s": self._elapsed,
+            "message": self.message, "elapsed_s": self._elapsed_ms / 1000.0,
             "standstill_assumed": self._standstill_assumed,
             "coasting_without_tach": self._blind_coast,
-            "fault_count": sum(fault is not None for fault in self.faults),
+            "warning_count": sum(self._warnings),
             "fans": fans,
         }

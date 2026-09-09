@@ -1,6 +1,6 @@
-"""Check six live PIO drivers and core-1 fault isolation at zero power only.
+"""Check six live PIO drivers and core-1 driver-error handling at zero power.
 
-Injects one driver fault on its owning core. The test recipe contains ONLY
+Injects one driver error on its owning core. The test recipe contains ONLY
 zero RPM steps; every PWM remains LOW. Saved selections/recipes are not read
 or written. Run via pico.ps1 Exec with the normal app stopped, then reboot.
 """
@@ -13,7 +13,7 @@ import config
 
 
 class TestSelection:
-    source = 'zero-power fault test'
+    source = 'zero-power driver-error test'
     load_error = None
 
     def load(self):
@@ -39,7 +39,7 @@ original_sample = PioFan.sample
 injected = False
 
 
-def sample_with_local_fault(self):
+def sample_with_driver_error(self):
     global injected
     if self._sm_id == config.TACH_STATE_MACHINES[0] and not injected:
         injected = True
@@ -51,25 +51,24 @@ def sample_with_local_fault(self):
 controller = None
 try:
     controller = Controller(RecipeBook(), fan_settings=TestSelection())
-    controller._profile = validate_profile({'name': 'Zero-power fault check', 'steps': [
+    controller._profile = validate_profile({'name': 'Zero-power driver-error check', 'steps': [
         {'rpm': 0, 'slew_s': 0, 'dwell_s': 30},
         {'rpm': 0, 'slew_s': 0, 'dwell_s': 0},
     ]})
     controller.start_button = OneStart()
-    PioFan.sample = sample_with_local_fault
+    PioFan.sample = sample_with_driver_error
     controller.start_thread()
     began = ticks_ms()
     observed = 0
     while ticks_diff(ticks_ms(), began) < 4000:
         sleep_ms(100)
         state = controller.snapshot()
-        if state['fault_count'] != 1:
+        if sum(bool(fan.get('driver_error')) for fan in state['fans']) != 1:
             assert not controller.finished, controller.error
             continue
         assert state['running'] and state['target_rpm'] == 0, state
-        assert state['fans'][0]['fault'] == 'command_underrun', state
-        assert not state['fans'][0]['participating']
-        assert all(state['fans'][i]['participating'] for i in range(1, 6)), state
+        assert state['fans'][0]['driver_error'] == 'command_underrun', state
+        assert all(fan['participating'] for fan in state['fans']), state
         assert all(fan['enabled'] and fan['duty'] == 0 for fan in state['fans'])
         assert controller.fans[0]._stopped
         assert all(not controller.fans[i]._stopped for i in range(1, 6))
@@ -79,8 +78,8 @@ try:
         observed += 1
         if observed == 10:
             break
-    assert observed == 10, ('No stable isolated-fault observation', controller.snapshot())
-    print('CORE1_LOCAL_FAULT_OK fan0 parked; other five PIO drivers stay armed')
+    assert observed == 10, ('No stable driver-error observation', controller.snapshot())
+    print('CORE1_DRIVER_ERROR_OK fan0 parked; other five PIO drivers stay armed')
     print('SIX_PWM_LOW_OK target=0 duty=0; heartbeat current; saved files untouched')
 finally:
     try:
@@ -88,4 +87,4 @@ finally:
             controller.close()
     finally:
         PioFan.sample = original_sample
-print('FAULT_RUNTIME_BOARD_OK all outputs closed LOW; no positive-power commands')
+print('DRIVER_ERROR_BOARD_OK all outputs closed LOW; no positive-power commands')

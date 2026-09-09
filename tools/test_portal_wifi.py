@@ -64,7 +64,7 @@ while time.monotonic() - started < 90:
         raise
     assert code == 200
     value = json.loads(body)
-    assert value['state'] not in ('FAULT', 'STOPPED'), value
+    assert value['state'] not in ('ERROR', 'STOPPED'), value
     fan = value['fans'][0]
     worst_lag = max(worst_lag, value.get('loop_lag_ms', 0))
     overflows = max(overflows, fan.get('tach_overflows', 0))

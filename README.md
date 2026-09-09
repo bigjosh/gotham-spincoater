@@ -6,7 +6,7 @@
 
 MicroPython controller for **Raspberry Pi Pico 2 W**, six **ARCTIC P12 Pro** fans, and the **52Pi/GeeekPi Pico Breadboard Kit Plus (EP-0172)**. Each enabled fan independently adjusts PWM power to follow one shared RPM target. A TFT dashboard displays all six channels; a local Wi-Fi page edits recipes.
 
-**All six fans are available; #0–#3 are selected by default.** The builder has confirmed the GPIO modifications for #4/#5, so their touch buttons now offer ENABLE. Use each tile's button to choose which fans participate; saved selections are preserved. Connect every selected fan before pressing START: persistent missing tach faults that fan and removes it from the current run, while the others continue. Physical spin testing so far covers fan #0; enabling the other channels does not establish that they are wired or tested.
+**All six fans are available; #0–#3 are selected by default.** The builder has confirmed the GPIO modifications for #4/#5, so their touch buttons now offer ENABLE. Use each tile's button to choose which fans participate; saved selections are preserved. Off-target RPM or missing tach produces a recoverable red warning while the fan continues to receive drive. Physical spin testing so far covers fan #0; enabling the other channels does not establish that they are wired or tested.
 
 **Building all six channels? [Board modification guide: free the four auxiliary GPIOs](BOARD_MODIFICATIONS.md)** — component locations, connection tracing, desoldering, continuity checks, wiring, and firmware setup.
 
@@ -20,13 +20,13 @@ MicroPython controller for **Raspberry Pi Pico 2 W**, six **ARCTIC P12 Pro** fan
 
 The joystick belongs to the earlier manual bench UI and does not change power in this application. Motor start is available only through the physical button.
 
-The TFT and browser show the run state, target, step, phase countdown, elapsed time, and each fan's RPM and requested power. Disabled channels have a **red background**, zero requested power, and no participation in control, settling, dwell, or tach-loss checks. **`--` means no valid recent tach measurement**, rather than a measured zero shaft speed. The phase countdown shows ramp time, remaining reach timeout, or unconsumed dwell time according to the state.
+The TFT and browser show the run state, target, step, phase countdown, elapsed time, and each fan's RPM and requested power. An enabled fan turns **red** after staying outside the configured RPM percentage band for the configured time. Its actual requested power and bar remain visible, and red clears on the first in-bounds reading. Disabled channels retain their red disabled styling, zero requested power, and no participation in control or warning checks. **`--` means no valid recent tach measurement**, rather than a measured zero shaft speed. The phase countdown shows remaining ramp or dwell time.
 
-![TFT dashboard with all six fan buttons available and red disabled cards](artifacts/dashboard-preview.png)
+![TFT dashboard with an off-target fan still driven and a separate disabled fan](artifacts/rpm-warning-dashboard-preview.png)
 
 ### Choose participating fans
 
-Tap **DISABLE** on a connected fan's tile to exclude it, or **ENABLE** to include it. The button is in the upper-right corner of each tile. A held touch or drag does not repeatedly toggle a channel. Selection changes are allowed while idle, stopped, complete, or faulted; buttons show **RUN** during a recipe and changes are rejected until it stops. Enabling a fan never starts its motor: a fresh physical START press is still required.
+Tap **DISABLE** on a connected fan's tile to exclude it, or **ENABLE** to include it. The button is in the upper-right corner of each tile. A held touch or drag does not repeatedly toggle a channel. Selection changes are allowed while idle, stopped, or complete; during a recipe the buttons show **RUN** or **OFF RPM** and changes are rejected until it stops. Enabling a fan never starts its motor: a fresh physical START press is still required.
 
 Selections are saved automatically in **`fans.json`**, independently of recipes, and restored after reboot. Importing a recipe or deploying Python files does not overwrite them. All fans may be disabled; START then asks you to enable at least one. Fans marked **LOCKED** cannot be enabled through touch until their kit connections are physically isolated and `AUX_LINKS_DISCONNECTED` is set in firmware configuration.
 
@@ -42,7 +42,7 @@ A profile has **2–9 steps**, including first and last steps at **0 RPM**.
 | --- | --- | --- |
 | `rpm` | Target at the end of this step's ramp | 0–4,000 RPM |
 | `slew_s` | Time to ramp linearly from the preceding target | 0–3,600 s |
-| `dwell_s` | Time spent at the settled target | 0–3,600 s |
+| `dwell_s` | Time to hold the requested target after this step's ramp | 0–3,600 s |
 
 The [default recipe](examples/recipes.json) is:
 
@@ -52,30 +52,32 @@ The [default recipe](examples/recipes.json) is:
 | 2 | 3,000 RPM | 15 s | 30 s |
 | 3 | 0 RPM | 15 s | 0 s |
 
-Planned ramps and dwell total 60 seconds. Initial quiet detection, settling, and final coast-down add time. A target is a request; the controller does not assume every fan can reach every permitted RPM.
+The default recipe lasts 60 seconds at the controller's 20 ms update resolution. Ramps and dwell follow their scheduled times; off-target fans do not extend the run. A target is a request, so a scheduled 30-second hold does not prove every fan spent 30 seconds at the requested speed. Motors can coast after the final zero-power command.
 
-After each ramp, **all participating fans** must remain within tolerance for the settling interval before dwell starts. Dwell counts only while all remaining participants are within tolerance, and pauses if any leaves the band. Each fan has its own settling and recovery checks; a fan that leaves tolerance during dwell must settle again to clear its recovery timeout.
+**RPM warnings are advisory and recover automatically.** Each enabled fan follows the same current target, including during a ramp. At a positive target, its deviation is `100 × abs(measured RPM − target RPM) / target RPM`. A deviation strictly greater than `rpm_warning_percent` starts that fan's timer. The tile turns red after `rpm_warning_delay_s` continuously outside bounds, and clears immediately on the first reading back within bounds. It remains selected and keeps seeking the target throughout. Warning timers clear when the run stops or completes.
 
-**A fan fault stops only that fan.** Persistent tach loss, failure to reach/recover the target, or a channel driver fault commands that channel LOW and excludes it from control, settling, and dwell for the rest of the run. Its tile turns red and shows **FAULT**; the browser also shows the reason. The other fans continue the current recipe without restarting its ramp or losing accumulated dwell. If no participating fans remain, the run ends in FAULT. If the remaining fans finish, the run ends COMPLETE and reports the failed fans.
+For example, the default 5% band at 3,000 RPM is **2,850–3,150 RPM inclusive**. Remaining at 2,800 RPM for 2 seconds turns the fan red without removing its PWM drive; a reading of 2,900 RPM clears red immediately. At a zero target the existing `tolerance_rpm` value defines the in-bounds range, avoiding division by zero. Invalid or stale tach is outside bounds at a positive target.
 
-Faults do not change the saved fan selection. A fresh physical START retries the selected fans. The physical STOP button and controller-wide failures still stop every output immediately.
+The physical STOP button still actively drives every PWM LOW and latches until a fresh START. Actual driver failures that prevent reliable PWM operation remain distinct from RPM deviation: an affected driver is parked LOW and reported as a driver error, while working drivers continue. A fresh START retries the selected drivers. Controller-wide failures still stop every output.
 
 | Setting | Default | Range |
 | --- | --- | --- |
 | `max_power_per_s` | 10 PWM percentage points/s | 0.1–100 |
-| `tolerance_rpm` | ±50 RPM | 1–500 |
-| `settle_s` | 0.5 s continuously in tolerance | 0.05–10 s |
-| `reach_timeout_s` | 15 s to reach/recover target | 1–120 s |
+| `tolerance_rpm` | ±50 RPM seeker deadband; zero-target warning band | 1–500 |
+| `rpm_warning_percent` | 5% maximum RPM difference before timing a warning | 0.1–100% |
+| `rpm_warning_delay_s` | 2 s continuously outside bounds before red | 0–120 s |
 
-Each fan's normal adjustment rate is `0.01 × RPM error` percentage points/s, limited by `max_power_per_s`, with no adjustment inside tolerance. The gain is `ControlEngine.SEEK_GAIN`. A fan fault commands zero power on that channel immediately; STOP and an explicit zero target command zero power on every channel. A slow control tick cannot accumulate a large catch-up adjustment.
+Each fan's normal adjustment rate is `0.01 × RPM error` percentage points/s, limited by `max_power_per_s`, with no adjustment inside the seeker deadband. The gain is `ControlEngine.SEEK_GAIN`. The warning percentage controls the red indication independently of that deadband. STOP and an explicit zero target command zero power on every channel. A slow control tick cannot accumulate a large catch-up adjustment.
 
-Startup without tach is limited to **8 seconds and at most 30% requested power**. Once valid tach has been observed, a missing signal normally holds power briefly, then faults after **1.5 seconds of invalid readings**. The measurement source itself also has a 1.5-second stale-data timeout.
+Startup without valid tach increases drive at the configured rate, capped at **30% requested power** until a valid measurement arrives. After valid tach has been seen, missing measurements hold the last requested power and show the timed warning; they do not turn the fan off or force blind acceleration. Valid tach returning lets normal seeking resume immediately. The measurement source still marks readings stale after 1.5 seconds without a fresh period.
 
-During a descent ending at zero, missing tach with requested power already at or below 30% causes power to **decrease only**, at the configured rate. This handles a fan entering its stop deadzone before a slow ramp reaches zero. Other positive-target losses still fault.
+During a descent ending at zero, missing tach with requested power already at or below 30% causes power to **decrease only**, at the configured rate. This handles a fan entering its stop deadzone before a slow ramp reaches zero.
 
-At a zero target, power stays LOW. Valid near-zero readings or 1.5 seconds with no new tach pulses allow settling to proceed. Pulse absence is an **assumed quiet condition**, not proof of physical stop: a stationary fan and a disconnected tach lead cannot be distinguished this way.
+At a zero target, power stays LOW. Valid near-zero readings or 1.5 seconds with no new tach pulses are considered in bounds. Pulse absence is an **assumed quiet condition**, not proof of physical stop: a stationary fan and a disconnected tach lead cannot be distinguished this way. This condition does not delay recipe timing.
 
 The Pico validates recipes, stages and checks JSON before replacement, and retains a backup. A damaged primary file falls back to its backup, then built-in defaults. Runs use detached recipe copies; edits are accepted only while idle.
+
+Existing version-1 recipe files with `settle_s` and `reach_timeout_s` are migrated in memory: profiles, power limit, and seeker deadband are retained, and the new warning settings default to 5% / 2 s. Old settling/timeouts no longer govern recipe timing. The original file stays untouched until Save; import accepts either complete schema and export uses the new settings.
 
 ## Connect fan #0
 
@@ -124,7 +126,7 @@ flowchart LR
     CONTROL -->|Published snapshot| UI[Core 0: TFT and Wi-Fi]
 ```
 
-- **PIO:** one state machine is reserved per hardware-available fan, with a DMA channel while its driver is active. Disabled fan outputs are parked LOW and their DMA is stopped. The 32-instruction program occupies each used PIO block. STOP is checked each 100-microsecond cycle and latches LOW. An empty command FIFO also latches LOW and raises a fault. These checks do not need Python servicing.
+- **PIO:** one state machine is reserved per hardware-available fan, with a DMA channel while its driver is active. Disabled fan outputs are parked LOW and their DMA is stopped. The 32-instruction program occupies each used PIO block. STOP is checked each 100-microsecond cycle and latches LOW. An empty command FIFO also latches LOW and raises a driver-error flag. These checks do not need Python servicing.
 - **Core 1:** polls period FIFOs and runs control at 50 Hz. It averages eight periods, assumes two pulses per revolution, and publishes snapshots about every 100 ms. There is no per-sample or per-period Python tach IRQ.
 - **Core 0:** handles display, Wi-Fi, HTTP/DNS, and idle persistence. The application checks the worker heartbeat and stops outputs if control stalls. Physical STOP remains available in PIO while Python is busy.
 
@@ -167,7 +169,7 @@ The guide includes the manufacturer's component-location photograph and a power-
 | [runtime.py](device/runtime.py) | Core-1 ownership, buttons, START/edit exclusion |
 | [control.py](device/control.py) | Hardware-free recipe state machine and RPM seekers |
 | [recipes.py](device/recipes.py) | Schema validation, defaults, backup persistence |
-| [pio_fan.py](device/pio_fan.py) | PIO/DMA ownership, FIFO polling, fault detection |
+| [pio_fan.py](device/pio_fan.py) | PIO/DMA ownership, FIFO polling, driver-error detection |
 | [combined_program.py](device/combined_program.py) | PWM/tach/STOP instructions and command encoding |
 | [periods.py](device/periods.py) | Mean of complete tach periods |
 | [dashboard.py](device/dashboard.py), [display.py](device/display.py) | Six-fan TFT and ST7796S drawing |
@@ -217,7 +219,7 @@ Tests cover controller transitions/limits, persistence recovery, START/edit race
 
 `tools/test_fan_settings_board.py` checks saved selections, all-off behavior, GPIO locks, the worker heartbeat, and LOW PWM outputs using a separate temporary settings file. It never starts a recipe and preserves the user's `fans.json` and `recipes.json`. Run it through `pico.ps1 -Action Exec -CodeFile tools/test_fan_settings_board.py` after deploying the modules, then reboot into the normal app. Touch hit alignment still needs a physical tap check on the installed display.
 
-`tools/test_fault_isolation_board.py` runs the control engine with scripted tach readings, without accessing GPIOs. `tools/test_fault_runtime_board.py` exercises all six live PIO drivers with an all-zero-RPM recipe and an injected fault on the control core: the failed channel parks while the other five remain armed at 0%. Neither test changes saved selections or recipes. Run each through the guarded `Exec` helper after deployment, then reboot. These check fault isolation and MicroPython compatibility, not positive-power operation of six physical fans.
+`tools/test_rpm_warning_board.py` runs the control engine with scripted tach readings, without accessing GPIOs. `tools/test_rpm_warning_runtime_board.py` exercises all six live PIO drivers with an all-zero-RPM recipe and scripted tach: fan #0's warning appears and clears while every driver remains armed at 0%. `tools/test_driver_error_board.py` separately checks that an actual driver error parks only the affected output. These tests do not change saved selections or recipes. Run each through the guarded `Exec` helper after deployment, then reboot. Scripted tach and zero-power tests do not establish positive-power operation of six physical fans.
 
 `tools/test_combined_board.py` drives **spare GP0/GP1/GP20** to test the current driver, continuous duty changes, STOP, command starvation, and FIFO recovery. Run only with these pins unconnected and the normal app's PIO resources released. The older `test_sync_board.py` uses GP0/GP1 and PIO1 SM4, requiring wireless to be inactive. `selftest.py` uses GP0/GP1 and SM10/11 for the original GPIO-IRQ test. Never run pin-driving tests after attaching additional fans or devices to those pins.
 

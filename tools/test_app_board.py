@@ -69,7 +69,7 @@ try:
                    fan.get('tach_overflows', 0), gc.mem_free()))
             gc.collect()
             last_report = elapsed
-        if value['state'] in ('COMPLETE', 'FAULT', 'STOPPED'):
+        if value['state'] in ('COMPLETE', 'ERROR', 'STOPPED'):
             break
         sleep_ms(2)
     print('APP_RESULT', status())

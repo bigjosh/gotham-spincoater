@@ -251,17 +251,18 @@ class DashboardTests(unittest.TestCase):
         dashboard.update(snapshot)
         self.assertEqual(len(batches), count)
 
-    def test_numeric_tracking_error_is_not_a_fault(self):
+    def test_numeric_tracking_error_waits_for_explicit_warning_flag(self):
         from dashboard import Dashboard
         screen = DisplayStub()
         dashboard = Dashboard(screen)
         snapshot = {'state': 'DWELL', 'fans': [
             {'enabled': True, 'valid': True, 'rpm': 2995, 'duty': 70, 'error': 5}]}
         dashboard.update(snapshot)
-        self.assertFalse(any(c[0] == 'text' and c[1] == 'FAULT' for c in screen.calls))
-        snapshot['fans'][0]['fault'] = 'Tach signal missing'
+        self.assertFalse(any(c[0] == 'text' and c[1] == 'OFF RPM' for c in screen.calls))
+        snapshot['running'] = True
+        snapshot['fans'][0]['warning'] = True
         dashboard.update(snapshot)
-        self.assertTrue(any(c[0] == 'text' and c[1] == 'FAULT' for c in screen.calls))
+        self.assertTrue(any(c[0] == 'text' and c[1] == 'OFF RPM' for c in screen.calls))
 
     def test_all_six_tiles_and_unchanged_snapshot_uses_no_display_io(self):
         from dashboard import Dashboard

@@ -32,6 +32,8 @@ try:
     while engine.running and ticks_diff(ticks_ms(), began) < 110000:
         now = ticks_ms()
         reading = fan.sample()
+        if reading.get('fault'):
+            raise RuntimeError('Fan driver error: ' + str(reading['fault']))
         duty = engine.update(now, {0: reading})[0]
         applied = fan.set_duty(duty)
         dt = max(0, ticks_diff(now, previous_time)) / 1000

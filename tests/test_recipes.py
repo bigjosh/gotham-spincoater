@@ -69,11 +69,63 @@ class RecipeTests(unittest.TestCase):
     def test_settings_bounds_and_version(self):
         for key in recipes.DEFAULT_SETTINGS:
             data = defaults()
-            data["settings"][key] = 0
+            data["settings"][key] = -1 if key == 'rpm_warning_delay_s' else 0
             with self.assertRaises(ValueError):
                 recipes.validate_document(data)
         data = defaults()
         data["version"] = True
+        with self.assertRaises(ValueError):
+            recipes.validate_document(data)
+
+    def test_warning_settings_support_immediate_warning_and_reject_invalid_values(self):
+        data = defaults()
+        data['settings'].update(rpm_warning_percent=7.5, rpm_warning_delay_s=0)
+        self.assertEqual(recipes.validate_document(data)['settings'], data['settings'])
+        for key, values in (
+            ('rpm_warning_percent', (0, 100.1, True, float('nan'), float('inf'), '5')),
+            ('rpm_warning_delay_s', (-0.1, 120.1, True, float('nan'), float('inf'), '2')),
+        ):
+            for value in values:
+                with self.subTest(key=key, value=value):
+                    candidate = defaults()
+                    candidate['settings'][key] = value
+                    with self.assertRaises(ValueError):
+                        recipes.validate_document(candidate)
+
+    def test_legacy_settings_migrate_without_mutating_saved_recipe(self):
+        data = defaults()
+        data['settings'] = {'max_power_per_s': 8, 'tolerance_rpm': 35,
+                            'settle_s': 1, 'reach_timeout_s': 20}
+        data['selected'] = data['profiles'][0]['name'] = 'My coating'
+        data['profiles'][0]['steps'][1]['rpm'] = 2400
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'recipes.json'
+            path.write_text(json.dumps(data), encoding='utf-8')
+            original = path.read_bytes()
+            book = recipes.RecipeBook(str(path))
+            migrated = book.load()
+            self.assertEqual(book.source, 'primary')
+            self.assertEqual(path.read_bytes(), original)
+            self.assertEqual(migrated['selected'], 'My coating')
+            self.assertEqual(migrated['profiles'], data['profiles'])
+            self.assertEqual(migrated['settings'], {
+                'max_power_per_s': 8, 'tolerance_rpm': 35,
+                'rpm_warning_percent': 5, 'rpm_warning_delay_s': 2})
+            book.save(migrated)
+            self.assertEqual(json.loads(path.read_text())['settings'], migrated['settings'])
+            self.assertEqual(Path(str(path) + '.bak').read_bytes(), original)
+
+    def test_incomplete_or_mixed_settings_do_not_silently_migrate(self):
+        data = defaults()
+        del data['settings']['rpm_warning_delay_s']
+        with self.assertRaises(ValueError):
+            recipes.validate_document(data)
+        data = defaults()
+        data['settings']['settle_s'] = 0.5
+        with self.assertRaises(ValueError):
+            recipes.validate_document(data)
+        data['settings'] = {'max_power_per_s': 10, 'tolerance_rpm': 50,
+                            'settle_s': float('nan'), 'reach_timeout_s': 15}
         with self.assertRaises(ValueError):
             recipes.validate_document(data)
 
