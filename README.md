@@ -8,6 +8,8 @@ MicroPython controller for **Raspberry Pi Pico 2 W**, six **ARCTIC P12 Pro** fan
 
 **Only fan #0 is enabled and physically connected in the current setup.**
 
+**Building all six channels? [Board modification guide: free the four auxiliary GPIOs](BOARD_MODIFICATIONS.md)** — component locations, connection tracing, desoldering, continuity checks, wiring, and firmware setup.
+
 ## Run a recipe
 
 1. Connect and power the hardware below. Boot starts at **0% power**; interrupted recipes never resume automatically.
@@ -134,6 +136,12 @@ See [the complete header map](PINOUT.md), with the Pico's USB connector at the t
 Preserve GP2–11 for display/touch, GP14/15 for buttons, and GP26/27 for the kit joystick. GP4 is physically connected to TFT MISO even though the display driver does not read it.
 
 `device/config.py` selects **`ENABLED_CHANNELS = (0,)`**. Add channels after wiring them. Channels #4/#5 require `AUX_LINKS_DISCONNECTED = True` after physical link disconnection; that modification has not been made. Every enabled fan follows the shared RPM target with its own PWM correction.
+
+### Preparing the kit for fans #4 and #5
+
+Follow the **[complete board modification instructions](BOARD_MODIFICATIONS.md)** before enabling these channels. Isolate the GP12 RGB-data branch, GP13 buzzer-driver input, GP16 D1 branch, and GP17 D2 branch. Preserve the display/touch resistor bank, buttons, joystick, and D3/D4 supply indicators.
+
+The guide includes the manufacturer's component-location photograph and a power-off tracing and inspection procedure. Manufacturer documentation mentions removable 0Ω connections, but does not establish the exact resistor references or values for all four auxiliary branches. Identify each series connection on the actual board before desoldering; do not assume every nearby resistor is a jumper. Set the configuration flag only after the physical isolation checks pass.
 
 ## Files and APIs
 
