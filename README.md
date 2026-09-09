@@ -6,7 +6,7 @@
 
 MicroPython controller for **Raspberry Pi Pico 2 W**, six **ARCTIC P12 Pro** fans, and the **52Pi/GeeekPi Pico Breadboard Kit Plus (EP-0172)**. Each enabled fan independently adjusts PWM power to follow one shared RPM target. A TFT dashboard displays all six channels; a local Wi-Fi page edits recipes.
 
-**Fans #0–#3 are available and selected by default.** Use each tile's touch button to choose which fans participate. Fans #4/#5 remain locked until their occupied GPIOs are physically isolated. Connect every selected fan before pressing START: missing tach on a selected channel faults the whole recipe. Physical spin testing so far covers fan #0; enabling the other channels does not establish that they are wired or tested.
+**All six fans are available; #0–#3 are selected by default.** The builder has confirmed the GPIO modifications for #4/#5, so their touch buttons now offer ENABLE. Use each tile's button to choose which fans participate; saved selections are preserved. Connect every selected fan before pressing START: missing tach on a selected channel faults the whole recipe. Physical spin testing so far covers fan #0; enabling the other channels does not establish that they are wired or tested.
 
 **Building all six channels? [Board modification guide: free the four auxiliary GPIOs](BOARD_MODIFICATIONS.md)** — component locations, connection tracing, desoldering, continuity checks, wiring, and firmware setup.
 
@@ -22,7 +22,7 @@ The joystick belongs to the earlier manual bench UI and does not change power in
 
 The TFT and browser show the run state, target, step, phase countdown, elapsed time, and each fan's RPM and requested power. Disabled channels have a **red background**, zero requested power, and no participation in control, settling, dwell, or tach-loss checks. **`--` means no valid recent tach measurement**, rather than a measured zero shaft speed. The phase countdown shows ramp time, remaining reach timeout, or unconsumed dwell time according to the state.
 
-![TFT dashboard with per-fan buttons, red disabled cards, and locked GPIO channels](artifacts/dashboard-preview.png)
+![TFT dashboard with all six fan buttons available and red disabled cards](artifacts/dashboard-preview.png)
 
 ### Choose participating fans
 
@@ -140,16 +140,16 @@ See [the complete header map](PINOUT.md), with the Pico's USB connector at the t
 | 1 | GP20 (pin 26) | GP21 (pin 27) | None; available, selected by default |
 | 2 | GP22 (pin 29) | GP28 (pin 34) | None; available, selected by default; tach stays at 3.3 V |
 | 3 | GP0 (pin 1) | GP1 (pin 2) | None; available, selected by default |
-| 4 | GP12 (pin 16) | GP16 (pin 21) | Disconnect RGB and D1 links |
-| 5 | GP13 (pin 17) | GP17 (pin 22) | Disconnect beeper and D2 links |
+| 4 | GP12 (pin 16) | GP16 (pin 21) | RGB and D1 isolation confirmed; available, initially disabled |
+| 5 | GP13 (pin 17) | GP17 (pin 22) | Beeper and D2 isolation confirmed; available, initially disabled |
 
 Preserve GP2–11 for display/touch, GP14/15 for buttons, and GP26/27 for the kit joystick. GP4 is physically connected to TFT MISO even though the display driver does not read it.
 
-`device/config.py` defaults to **`ENABLED_CHANNELS = (0, 1, 2, 3)`** with **`AUX_LINKS_DISCONNECTED = False`**. Saved touch selections take precedence over that initial default. The unmodified kit provides four independent pairs. Both channels #4/#5 require physical link disconnection before setting the flag to `True`; that modification has not been made. Every selected fan follows the shared RPM target with its own PWM correction. For a one-fan bench setup, leave #0 enabled and tap DISABLE on #1–#3 before starting a recipe.
+`device/config.py` defaults to **`ENABLED_CHANNELS = (0, 1, 2, 3)`** with **`AUX_LINKS_DISCONNECTED = True`** following the builder's modification confirmation on 2026-09-08. Saved touch selections take precedence over the initial default. Unlocking #4/#5 does not select them automatically; use their ENABLE buttons. Every selected fan follows the shared RPM target with its own PWM correction. For a one-fan bench setup, leave only #0 enabled before starting a recipe.
 
 ### Preparing the kit for fans #4 and #5
 
-Follow the **[complete board modification instructions](BOARD_MODIFICATIONS.md)** before enabling these channels. Isolate the GP12 RGB-data branch, GP13 buzzer-driver input, GP16 D1 branch, and GP17 D2 branch. Preserve the display/touch resistor bank, buttons, joystick, and D3/D4 supply indicators.
+The builder has completed this modification on the project kit. For an **unmodified kit**, set `AUX_LINKS_DISCONNECTED = False` and follow the **[complete board modification instructions](BOARD_MODIFICATIONS.md)** before unlocking these channels. Isolate the GP12 RGB-data branch, GP13 buzzer-driver input, GP16 D1 branch, and GP17 D2 branch. Preserve the display/touch resistor bank, buttons, joystick, and D3/D4 supply indicators.
 
 The guide includes the manufacturer's component-location photograph and a power-off tracing and inspection procedure. Manufacturer documentation mentions removable 0Ω connections, but does not establish the exact resistor references or values for all four auxiliary branches. Identify each series connection on the actual board before desoldering; do not assume every nearby resistor is a jumper. Set the configuration flag only after the physical isolation checks pass.
 

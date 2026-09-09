@@ -73,3 +73,9 @@ Added ENABLE/DISABLE buttons to the six-card TFT. Disabled cards have a red back
 - Touch protocol, address, and reset sequencing follow the [manufacturer's Pico 2 example](https://github.com/geeekpi/pico_breadboard_kit/tree/pico2) and [Goodix driver](https://github.com/goodix/gt9xx_driver_android/blob/master/gt9xx.c). The driver expects GT911 at address `0x5D`, native 320×480 coordinates, and rotates them to the current landscape TFT. It does not rewrite the controller configuration.
 - **Deployment and physical verification are pending:** the project USB device was disconnected during this change. The identity guard stopped before opening a serial port; COM4 and COM5 were not accessed. The last deployed firmware remains the preceding four-channel version. No new motor run was initiated.
 - Prepared [the zero-power board integration check](../tools/test_fan_settings_board.py) for saved selections, worker acknowledgements, GPIO locks, and LOW output levels. Run it after reconnection/deployment, then confirm that a tap toggles the intended tile once and that the selection survives reboot.
+
+## Auxiliary GPIO modifications confirmed — 2026-09-08
+
+The builder reported completing the GPIO modifications and requested unlocking fans #4/#5. Set `AUX_LINKS_DISCONNECTED = True`; all six channels are now hardware-available to the runtime and touchscreen. The initial selection stays `(0, 1, 2, 3)`, and saved `fans.json` selections are preserved. Fans #4/#5 offer ENABLE rather than LOCKED until selected.
+
+All **219 host tests passed**, including the updated shipped-configuration expectation and explicit unmodified-kit guard tests. Updated the header map, modification status, and rendered dashboard preview. No new electrical or motor test was performed; the project Pico remains disconnected, so deployment and physical touch verification are still pending.

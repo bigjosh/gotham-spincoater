@@ -59,9 +59,9 @@ class RigTests(unittest.TestCase):
             self.module.FanRig()
         self.assertEqual(self.attempted, [])
 
-    def test_shipped_configuration_constructs_four_unmodified_kit_channels(self):
+    def test_shipped_configuration_unlocks_auxiliary_channels_without_selecting_them(self):
         self.assertEqual(self.config.ENABLED_CHANNELS, (0, 1, 2, 3))
-        self.assertFalse(self.config.AUX_LINKS_DISCONNECTED)
+        self.assertTrue(self.config.AUX_LINKS_DISCONNECTED)
         rig = self.module.FanRig()
         self.assertEqual(list(rig.fans), [0, 1, 2, 3])
         self.assertEqual([(fan.pwm, fan.tach) for fan in self.constructed],
@@ -80,12 +80,14 @@ class RigTests(unittest.TestCase):
                 self.assert_rejected_before_construction()
 
     def test_channels_four_and_five_require_auxiliary_links_disconnected(self):
+        self.config.AUX_LINKS_DISCONNECTED = False
         for ids in ((0, 4), (0, 5), (0, 4, 5)):
             with self.subTest(ids=ids):
                 self.config.ENABLED_CHANNELS = ids
                 self.assert_rejected_before_construction()
 
     def test_first_four_channels_do_not_require_auxiliary_link_changes(self):
+        self.config.AUX_LINKS_DISCONNECTED = False
         self.config.ENABLED_CHANNELS = (0, 1, 2, 3)
         rig = self.module.FanRig()
         self.assertEqual(list(rig.fans), [0, 1, 2, 3])

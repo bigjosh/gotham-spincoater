@@ -1,8 +1,8 @@
 # Freeing the kit pins for six fans
 
-The unmodified **52Pi/GeeekPi Pico Breadboard Kit Plus, EP-0172** supports fans **#0–#3** with the [current allocation](README.md#six-fan-gpio-allocation). Fans **#4 and #5** need four GPIOs currently connected to kit peripherals. This guide covers identifying and disconnecting those connections, checking the work, and enabling the additional channels.
+The unmodified **52Pi/GeeekPi Pico Breadboard Kit Plus, EP-0172** supports fans **#0–#3** with the [current allocation](README.md#six-fan-gpio-allocation). Fans **#4 and #5** need four GPIOs originally connected to kit peripherals. This guide covers identifying and disconnecting those connections, checking the work, and enabling the additional channels.
 
-**Status:** this modification has not yet been performed or electrically verified on the project's board. The GPIO assignments and component locations below come from manufacturer documentation. Exact resistor reference numbers and values for these four connections remain unverified; the procedure deliberately requires tracing them on the actual board before desoldering.
+**Project status:** the builder confirmed completion on 2026-09-08, and firmware configuration now unlocks fans #4/#5 with `AUX_LINKS_DISCONNECTED = True`. Their participation is selected separately using the touchscreen. The GPIO assignments and component locations below come from manufacturer documentation. Exact removed resistor references and values have not been recorded; when modifying another board, trace its connections before desoldering.
 
 ## What to disconnect
 

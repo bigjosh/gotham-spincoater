@@ -45,7 +45,7 @@ if __name__ == '__main__':
         'step': 0, 'step_count': 3, 'phase_remaining_s': None,
         'message': 'Tap ENABLE / DISABLE to choose participating fans', 'ssid': 'Gotham Spinner',
         'ip': '192.168.4.1', 'loop_lag_ms': 4,
-        'fans': [{'enabled': i in (0, 1, 3), 'available': i < 4, 'rpm': 0,
+        'fans': [{'enabled': i in (0, 1, 3), 'available': True, 'rpm': 0,
                   'valid': False, 'duty': 0, 'error': 0, 'fault': None}
                  for i in range(6)],
     })
