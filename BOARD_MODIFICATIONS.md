@@ -1,8 +1,12 @@
-# Freeing the kit pins for six fans
+# Board modifications for six fans
 
-The unmodified **52Pi/GeeekPi Pico Breadboard Kit Plus, EP-0172** supports fans **#0–#3** with the [current allocation](README.md#six-fan-gpio-allocation). Fans **#4 and #5** need four GPIOs originally connected to kit peripherals. This guide covers identifying and disconnecting those connections, checking the work, and enabling the additional channels.
+An unmodified **52Pi/GeeekPi Pico Breadboard Kit Plus, EP-0172** has enough free pins for **four fans (#0–#3)**. To connect all six, disconnect four kit peripheral branches and use those GPIOs for **fans #4 and #5**. The screen, touch, buttons, and joystick remain connected; the RGB LED, buzzer, and two GPIO indicator LEDs are sacrificed.
 
-**Project status:** the builder confirmed completion on 2026-09-08, and firmware configuration now unlocks fans #4/#5 with `AUX_LINKS_DISCONNECTED = True`. Their participation is selected separately using the touchscreen. The GPIO assignments and component locations below come from manufacturer documentation. Exact removed resistor references and values have not been recorded; when modifying another board, trace its connections before desoldering.
+You can build and run the first four channels before doing this work. Return to [Getting started](README.md#getting-started) for the complete build, or use the [pin map](PINOUT.md) while tracing the board.
+
+**Before installing the app on an unmodified kit, set `AUX_LINKS_DISCONNECTED = False` in [device/config.py](device/config.py).** The checked-in value is `True` for the completed six-fan rig. Setting a fan to DISABLED on the touchscreen is insufficient: available channels still initialize their GPIOs and tach samplers. Change the flag to `True` only after all four branches below are physically isolated and checked.
+
+This guide gives the GPIO destinations and a tracing procedure. The manufacturer does not publish a verified four-part removal list, and exact resistor references/values have not been recorded for this build. Identify each series connection on your own board before desoldering; do not guess an `Rxx` number from a photograph.
 
 ## What to disconnect
 
@@ -88,43 +92,33 @@ Reinstall a removed Pico in its original orientation with both rows fully aligne
 | Fan pin 1, ground | Supply negative and Pico GND | Supply negative and Pico GND |
 | Fan pin 2, motor power | External +12 V | External +12 V |
 
-These revised pairs place tach above PWM with the Pico USB connector at the top: fan #4 uses the left header and fan #5 the right. They replace the earlier cross-header pairs. Fan #3 also changes to GP1 PWM / GP0 tach; see the [complete pinout](PINOUT.md). Rewire these channels with power disconnected before deploying the new map.
+With the Pico USB connector at the top, these pairs place tach above PWM: fan #4 uses the left header and fan #5 the right. See the [complete pinout](PINOUT.md) for all six channels.
 
-Use an individual PWM and tach connection for each fan; do not join tach outputs or use a shared PWM splitter for independently controlled channels. Identify fan connector pins by their key and numbering, since wire colors vary. The [fan wiring and power-order instructions](README.md#connect-fan-0) apply to every channel. Each enabled tach input has an internal 3.3 V pull-up; the optional external 4.7 kΩ pull-up goes to **3V3(OUT)**, never 12 V.
+Use an individual PWM and tach connection for each fan; do not join tach outputs or use a shared PWM splitter for independently controlled channels. Identify fan connector pins by their key and numbering, since wire colors vary. The [fan wiring and power-order instructions](README.md#3-wire-the-fans) apply to every channel. Each available tach input has an internal 3.3 V pull-up; an optional external 4.7 kΩ pull-up goes to **3V3(OUT)**, never 12 V.
 
 ## 5. Enable and check the channels
 
-Keep the checked-in configuration unchanged until the physical work is complete. Once all four branches are isolated and all six fans are wired, edit [device/config.py](device/config.py):
+Keep `AUX_LINKS_DISCONNECTED = False` until the physical work is complete. Once all four branches are isolated and checked, edit [device/config.py](device/config.py):
 
 ```python
 AUX_LINKS_DISCONNECTED = True
-ENABLED_CHANNELS = (0, 1, 2, 3, 4, 5)
 ```
 
-`ENABLED_CHANNELS` is the initial selection only. Existing touchscreen choices in `fans.json` take precedence; after reboot, use each tile's ENABLE/DISABLE button to select the newly connected fans. For incremental testing, select only connected fans, such as #0 and #4. The `AUX_LINKS_DISCONNECTED` flag is a manual declaration that the four connections have been isolated, **not an electrical test**. An enabled but unwired fan shows the timed RPM warning; missing tach does not disable its PWM output. Leave `FUTURE_CHANNELS` and the PIO state-machine allocation unchanged.
+Leave the GPIO pairs and state-machine allocation unchanged. Upload the edited configuration and restart the Pico using the [firmware installation instructions](firmware/README.md), with the fan supply still disconnected.
 
-With motor power still disconnected, power the Pico by USB. From the repository directory, deploy the edited configuration and reboot:
+The flag makes fans #4/#5 **available**; their touchscreen ENABLE/DISABLE buttons determine whether they **participate** in a recipe. `ENABLED_CHANNELS` supplies the initial selection on a fresh installation and defaults to #0–#3. Saved touchscreen choices in `fans.json` take precedence on later boots. You do not need to change that setting to enable the new fans by touch.
 
-```powershell
-.\tools\pico.ps1 -Action Deploy -Only config.py
-.\tools\pico.ps1 -Action Reboot
-```
+The flag is your declaration that the four connections have been isolated, **not an electrical test**. An enabled but unwired fan can receive power commands and show a timed RPM warning; missing tach does not disable its PWM output.
 
-After USB reconnects, inspect startup if needed:
-
-```powershell
-.\tools\pico.ps1 -Action Monitor -Seconds 10
-```
-
-The helper targets this project's identified Pico and excludes COM4/COM5; see [deployment details](README.md#deploy-and-test) before adapting it for another board. These commands are instructions for the completed hardware modification, not actions performed by this documentation update.
-
-1. Confirm the dashboard boots idle and requested power is zero. The new fan tiles should now offer ENABLE rather than LOCKED. Select the connected fans using their touch buttons; disabled tiles are red. The supply indicators may still light; disconnected RGB/D1/D2 behavior is not a verification test.
+1. Confirm the dashboard boots idle and requested power is zero. The new fan tiles should now offer ENABLE rather than LOCKED. Select only the connected fans using their touch buttons; disabled tiles are red. For an incremental test, enable just #4, then repeat with #5. The supply indicators may still light; disconnected RGB/D1/D2 behavior is not a verification test.
 2. Secure the fans for an unloaded bench test. Apply external motor power after the idle dashboard appears.
-3. Use a short recipe at an achievable RPM to check each newly enabled fan's RPM response. Press left START, then press right STOP while the fans run. Every output should command zero; the fans will coast down. Releasing STOP must not restart the run.
+3. Follow [Run your first spin](README.md#5-run-your-first-spin) to check each newly enabled fan's RPM response. Press left START, then press right STOP while the fans run. Every output should command zero; the fans will coast down. Releasing STOP must not restart the run. The tested P12 Pro stops reporting tach at zero PWM, so a displayed zero after STOP does not prove the rotor has stopped.
 4. If a fan has missing or implausible tach, stop and remove motor power before checking its individual signal pair and common ground. Do not enable the remaining channels until the connected ones behave correctly.
 
-The existing six-channel synthetic test is not a substitute for testing the completed wiring with six physical fans. In particular, do not run the repository's spare-pin waveform tests after wiring additional fans: some drive GP0/GP1/GP20 directly.
+The repository's synthetic waveform tests are development tools, not installation steps. Some drive GPIOs now used by fan channels; do not run spare-pin tests on the assembled rig. See [Technical reference](TECHNICAL_REFERENCE.md) for validation details.
 
 ## Restoring the kit later
 
-Turn off motor power, disconnect all supplies, and remove the fan signal wiring from the reclaimed GPIOs. Restore the saved components to their original locations and check for shorts before powering up. Use the **original component values**: replace a part with a wire or solder bridge only if it was positively identified as a 0Ω link. Set `AUX_LINKS_DISCONNECTED = False` and remove channels #4/#5 from `ENABLED_CHANNELS` before returning the restored kit to fan-control use.
+1. Stop the run and disconnect motor power. While the kit branches are still isolated, upload `config.py` with `AUX_LINKS_DISCONNECTED = False` and restart the app. This prevents the firmware from initializing fan #4/#5 GPIOs after their kit peripherals are restored.
+2. Disconnect USB and all remaining supplies, then remove the fan signal wiring from GP12/GP13/GP16/GP17.
+3. Restore the saved components to their original locations and check for shorts before powering up. Use the **original component values**: replace a part with a wire or solder bridge only if it was positively identified as a 0Ω link.

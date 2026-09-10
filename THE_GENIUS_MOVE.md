@@ -10,7 +10,7 @@ The idea became working firmware. After testing it with the real fan, the builde
 
 ## The problem: a fan with an imaginary racing career
 
-The project needs six fans, eventually ramping to 3,000 RPM and holding for 30 seconds. First, one fan needed a reliable speed measurement.
+The project began with a goal: run six fans, ramp to 3,000 RPM, and hold for 30 seconds. First, one fan needed a reliable speed measurement.
 
 With only the tach wire connected, the reading was accurate. Connecting PWM made the reported speed jump into the tens of thousands of RPM. One recorded peak was **57,692.5 RPM**. The scope showed PWM-related disturbances riding on the tach waveform, especially during its HIGH phase.
 
@@ -81,15 +81,17 @@ The implementation also handles two easily missed details: the PWM counter keeps
 
 The physical confirmation is the payoff. The earlier six-channel test established that the implementation could handle the workload and reject the injected disturbances; the builder's real-fan test confirmed that the idea addressed the actual bench problem.
 
-This closed the reported false-RPM problem. At that point, the manual firmware reset its averaging window on duty changes, and automatic ramp/hold control was still a separate milestone. The successful 10 kHz bench setting is below ARCTIC's documented 21–28 kHz range, as recorded in the [current wiring and configuration notes](README.md).
+This closed the reported false-RPM problem. At that point, the manual firmware reset its averaging window on duty changes, and automatic ramp/hold control was still a separate milestone. The successful 10 kHz bench setting is below ARCTIC's documented 21–28 kHz range, as recorded in the [electrical interface notes](TECHNICAL_REFERENCE.md#electrical-interface).
 
 ## The follow-through: let PIO own the whole cycle
 
-The current [Gotham Spinner application](README.md) builds on that same insight. Each fan now gets one combined PIO state machine that **generates PWM, samples tach at the midpoint, counts complete tach periods, and checks the physical STOP button**. Changing duty preserves the tach history. Python polls the measured periods on a separate control core, while the other core handles the six-fan dashboard and Wi-Fi recipe editor.
+The completed [Gotham Spinner application](README.md) builds on that same insight. Each of six fans gets a PIO state machine that **generates PWM, samples tach at the midpoint, and counts complete tach periods**. Changing duty and pressing STOP preserve tach capture. Python polls the measured periods on a separate control core, while the other core handles the six-fan dashboard and Wi-Fi recipe editor.
 
-The combined program occupies 32 instructions in each used PIO block. Six channels use six state machines and six DMA channels, leaving PIO1 for Wi-Fi. At 0% and 100%, sampling continues. On STOP, PIO drives LOW and parks until an explicit restart; an empty command FIFO also latches LOW. There are no per-tach Python interrupt handlers in this version.
+The combined program occupies 32 instructions in each used PIO block. Six fan state machines and a separate STOP watcher use seven state machines and twelve DMA channels, leaving PIO1 for Wi-Fi. The watcher forces the physical PWM outputs LOW through hardware DMA and latches until a fresh START; the tach samplers keep running. An empty command FIFO independently parks the affected output LOW. There are no per-tach Python interrupt handlers in this version.
 
-The attached fan has now completed a live recipe with several speed changes and reached approximately 3,000 RPM at 99% duty without false tach readings. Six physically connected motors remain a future wiring milestone; the firmware currently enables only fan #0. See the [validation record](artifacts/validation.md) for the current test evidence and its limits.
+The builder declared the project complete and successful on September 10, 2026. The controller now supports six independently regulated fans, programmable ramp/hold recipes, touchscreen fan selection, and browser editing with JSON import/export. The original timing insight remains at the center of its measurement system.
+
+One distinction matters: sampling continuously does not make a fan supply tach when its own controller stops reporting it. On the tested P12 Pro, the physical tach signal goes quiet at zero PWM; a stale reading becomes zero after 1.5 seconds even if the rotor is still coasting. See the [validation record](artifacts/validation.md) for measurements and the [technical reference](TECHNICAL_REFERENCE.md) for the current architecture.
 
 **An excellent piece of engineering intuition: notice the useful information already present, then make the hardware act on it.**
 
