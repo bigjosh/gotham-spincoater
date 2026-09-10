@@ -5,9 +5,9 @@
 Why yet another thin film coating spinner project?
 
 1) Six samples at once. We had a lot of samples to coat, so this was the primary motivation. 
-2) Only about 1-2 hours to build. Mostly thanks to not needing to remove the blades from the fans. 
+2) Only about 1-2 hours to build. Mostly thanks to not needing to remove the blades from the fans. Quickly pays for itself in time saved even a smallish run.
 3) Parts budget under US$100- and all easy to get stuff.
-4) No extra parts like transistors or level shifters. Just fans and the Pico. This took some extra effort, but helps with the low cost and quick assembly. 
+4) No extra parts like transistors or level shifters. Just fans and the Pico/Breadboard. This took some extra effort, but helps with the low cost and quick assembly. 
 5) Portable. In hindsight, I should have even added a handle to the top so you could carry it into the clean room like a little briefcase. 
 
 Here is a video to inspire you to make one...
