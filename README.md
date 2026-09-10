@@ -26,6 +26,8 @@ Why yet another thin film coating spinner project?
 | 6 sets | Four-pin fan connectors/breakout leads, hookup wire, and power terminals | Each fan needs its own PWM and tach connections. Only the 12 V and ground distribution are shared. |
 | 12 | 10-24 Screws to attach the fans to the panel. You you can use 24 screws if you need things to be symmetrical (but 12 is fine). I also used optional washers. 
 
+I also used female sockets to attach the wire to the breadboard headers, but you can also solder directly on to them. 
+
 #### 1.1 Made
 
 **Panel** - Mine is laser cut from 3/16 acriylic but you could use anything flat and ridged and compatible with your spin liquid. You could also drill the holes if you dont have a laser cutter.
@@ -49,6 +51,11 @@ Pretty obvious. Each fan's PWM and Tach signal goes to the mapped pin on the pic
 | **#4** | GP13 (17) | GP12 (16) | Isolate RGB and buzzer branches |
 | **#5** | GP16 (21) | GP17 (22) | Isolate D1 and D2 branches |
 
+Here is how I dealt with the wire mess. You can probably do better. 
+
+<img width="1815" height="1363" alt="PXL_20260910_042012834" src="https://github.com/user-attachments/assets/9079a795-72f7-420f-88e8-669450ec5bce" />
+
+
 #### Assembling 
 
 Bolt the fans to the back of the panel. Boom. You are done. 
@@ -63,27 +70,24 @@ I made shrouds to be safe and because they make it look more like a normal spinn
 
 ##### Modify the Breadboard
 
-The breadboard does not leave us enough GPIOs for all the fans, so are sharing the pins that go to the speaker, RGB LED,  D1, and D2. 
+The breadboard does not leave us enough GPIOs for all the fans, so we are sharing the pins that go to the speaker, RGB LED,  D1, and D2. 
 
-It will probably work fine if you leave these connected, just you might get some unwanted sights and sounds. The worst is the speaker, which is easily disconnected by unsoldering the SOT23 transistor that leads to it. If you are in a rush you can just clip it. Same goes for the other parts. 
+It will probably work fine if you leave these connected, just you might get some extra sights and sounds. The worst is the speaker, which is easily disconnected by unsoldering the SOT23 transistor that leads to it. If you are in a rush you can just clip it. Same goes for the other parts. 
+
+There is an `AUX_LINKS_DISCONNECTED` setting if you want to complete suppress those pins and lose those 2 fans. 
 
 ### 4. Install MicroPython and the app
 
-Leave the fan's 12 V supply off throughout installation.
-
 1. [Download the project](https://github.com/bigjosh/gotham-spincoater/archive/refs/heads/main.zip) and extract it, or clone this repository.
-2. Open [device/config.py](device/config.py) in a text editor. Set `AUX_LINKS_DISCONNECTED` for your actual hardware as described above. For a first test with only fan #0 selected, set `ENABLED_CHANNELS = (0,)`.
 3. Hold the Pico's **BOOTSEL** button while connecting USB. Install the tested **MicroPython v1.29.0 ARM build for Pico 2 W** using the [firmware installation guide](firmware/README.md).
 4. Follow that guide to identify **your** Pico's serial connection and copy the `.py` files inside `device/` to the Pico's top-level filesystem, with `main.py` last. This is a one-time software installation; it does not require editing the control code.
 5. Reset the Pico. The six-tile dashboard should appear in **IDLE**, with every requested power at **0%**. `main.py` starts automatically on future boots.
-
-The installation guide has Windows, macOS, and Linux commands. The repository's `tools/pico.ps1` helper is specific to the original builder's board; new builders should use the portable instructions instead.
 
 ### 5. UI
 
 ![Gotham Spinner dashboard preview with six fan tiles and physical START/STOP labels](artifacts/dashboard-preview.png)
 
-On the touch screen UI you can enable/disable each fan individually. START and STOP obvious. Try it. 
+On the touch screen UI you can enable/disable each fan individually. START and STOP physical buttons. Try it. 
 
 ### 6 Recipes 
 
