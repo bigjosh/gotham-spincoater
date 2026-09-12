@@ -40,7 +40,7 @@ https://pf.josh.com
 | ---: | --- | --- |
 | 1 | [Raspberry Pi Pico 2 W with headers](https://www.adafruit.com/product/6315) | The **Pico 2 W**, with both 20-pin headers fitted. The original Pico/Pico W uses a different chip. |
 | 1 | [52Pi/GeeekPi Pico Breadboard Kit Plus, EP-0172](https://52pi.com/collections/rpi-pico/products/raspberry-pi-pico-pico-w-breadboard-kit-with-3-5-inch-touch-screen-display-led-indicator-on-board) | The version with the 3.5-inch touch TFT, buttons, and joystick. Choose the kit without an older Pico bundled in. |
-| 6 | [ARCTIC P12 Pro fans](https://www.arctic.de/en/P12-Pro/ACFAN00305A) | 12 V, four-pin PWM, rated up to 3,000 RPM. Or you can use any 120mm fan that can make it up to 3000RPM.|
+| 6 | [ARCTIC P12 Pro fans](https://www.arctic.de/en/P12-Pro/ACFAN00305A) | 12 V, four-pin PWM, rated up to 3,000 RPM. Or you can use any 120mm fan that can make it up to 3000RPM. Or any size if you are willing the move the holes in the panel.|
 | 1 | Regulated 12 V DC power supply | At least **3 A** for six fans. I somehow found a power supply in my pile that had BOTH 12V and 5V DC outputs which makes for a cleaner setup - but you can easily power the Pico via any micro-USB connection. |
 | 1 | Micro-USB **data** cable | Connects the Pico to your computer for installation, and supplies its USB power if needed durring operation. |
 | 6 sets | Four-pin fan connectors/breakout leads, hookup wire, and power terminals | Each fan needs its own PWM and tach connections. Only the 12 V and ground distribution are shared. |
@@ -51,8 +51,11 @@ I also used female sockets to attach the wire to the breadboard headers, but you
 #### 1.1 Made
 
 **Panel** - Mine is laser cut from 3/16 acriylic but you could use anything flat and ridged and compatible with your spin liquid. You could also drill the holes if you dont have a laser cutter.
+
 **Gravity chucks** - 3D printed. These are designed for our samples (27mm x 1mm disks) so you can adapt to your samples. 
+
 **Shrouds** - 3D printed. Probably not necessary? But look cool. 
+
 
 All manufaturing files are in [`/manufacturing`](/manufacturing`).
 
@@ -131,7 +134,7 @@ The liquid should flow down thru the fans so you want something to catch it. A b
 
 ## How it works, and where to go next
 
-Read my AI's insightful account about how it grinded thru a billion tokens trying to come up with a suitable filter that could clean up the noisy tach signal, and how I saved the day with a human out-of-the-box super simple and 100% reliable solutions (we have to gloat about this wins while we still can!)...
+Read my AI's insightful account about how it grinded thru a billion tokens trying to come up with a suitable filter that could clean up the noisy tach signal, and how I saved the day with a human out-of-the-box super simple and 100% reliable solution (we have to gloat about this wins while we still can!)...
 
 > **[The Genius Move: Read the Tach Between the Noise](THE_GENIUS_MOVE.md)** tells the story of the timing insight that made fan-speed measurement reliable: sample tach halfway through the longer PWM phase, away from switching disturbances.
 
