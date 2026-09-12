@@ -8,7 +8,7 @@ Why yet another thin film coating spinner project?
 2) Only about 1-2 hours to build. Mostly thanks to not needing to remove the blades from the fans. Quickly pays for itself in time saved even a smallish run.
 3) Parts budget under US$100- and all easy to get stuff.
 4) No extra parts like transistors or level shifters. Just fans and the Pico/Breadboard. This took some extra effort, but helps with the low cost and quick assembly. 
-5) Portable. In hindsight, I should have even added a handle to the top so you could carry it into the clean room like a little briefcase. 
+5) Portable. In hindsight, I should have added a handle to the top so you could carry your little spin coater breifcase into the clean room like a boss. 
 
 Here is a video to inspire you to make one...<br>
 https://www.youtube.com/watch?v=6NayjZEfgNU
@@ -16,6 +16,18 @@ https://www.youtube.com/watch?v=6NayjZEfgNU
 Youtube short of it pumping out coatings in the cleanroom...<br>
 https://youtube.com/shorts/n7weOr3MzJo
 
+## Why?
+
+We are making Pocket Fiches. We are making a lot of them. And they are coming out so fricken hot...
+<img width="2048" height="1542" alt="2026-08-18 19 00 58" src="https://github.com/user-attachments/assets/89c8c273-9ba8-4679-b6c7-d3863e618f7f" />
+
+27mm sapphire disk, coated in pure gold, and then etched with microscopically (literally- each pixel is 1 micron) small images. This is a rare kind of thing that you can not understand unless you actually see it with your own eyes.
+
+More info:<br>
+https://wp.josh.com/2025/10/30/a-billion-digits-of-pi-experiments-in-ultra-microprinting-with-gold-on-sapphire/
+
+Zoom in....<br>
+https://pf.josh.com
 
 
 ## Getting started
