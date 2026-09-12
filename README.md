@@ -10,8 +10,13 @@ Why yet another thin film coating spinner project?
 4) No extra parts like transistors or level shifters. Just fans and the Pico/Breadboard. This took some extra effort, but helps with the low cost and quick assembly. 
 5) Portable. In hindsight, I should have even added a handle to the top so you could carry it into the clean room like a little briefcase. 
 
-Here is a video to inspire you to make one...
+Here is a video to inspire you to make one...<br>
 https://www.youtube.com/watch?v=6NayjZEfgNU
+
+Youtube short of it pumping out coatings in the cleanroom...<br>
+https://youtube.com/shorts/n7weOr3MzJo
+
+
 
 ## Getting started
 
